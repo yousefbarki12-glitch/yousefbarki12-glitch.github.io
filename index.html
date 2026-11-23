@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Magasin PC</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Magasin PC">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+body{margin:0}
+[hidden]{display:none!important}
+/* Layout: app mobile — barre du haut collante, contenu en cartes, barre d'onglets en bas */
+:root{
+  --bg:#f3f5f9; --panel:#ffffff; --panel2:#f7f9fc; --fg:#172033; --muted:#647089; --line:#e1e6ef;
+  --accent:#2457d6; --accent-fg:#ffffff; --accent-soft:#e7eefc;
+  --good:#15803d; --good-soft:#dcfce7; --bad:#c62828; --bad-soft:#fde4e4; --warn:#b45309; --warn-soft:#fdf0d5;
+  --shadow:0 10px 30px rgba(15,25,50,.18); --overlay:rgba(12,18,32,.5);
+  --f-body:-apple-system,"SF Pro Text","Segoe UI",system-ui,sans-serif; --f-head:-apple-system,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  --nav-h:62px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e131d; --panel:#161d2a; --panel2:#1b2332; --fg:#e7ecf5; --muted:#93a0b8; --line:#273145;
+  --accent:#6b93f5; --accent-fg:#0b1220; --accent-soft:#1d2a47;
+  --good:#4ade80; --good-soft:#123222; --bad:#f87171; --bad-soft:#3a1717; --warn:#fbbf24; --warn-soft:#3a2c0c;
+  --shadow:0 10px 30px rgba(0,0,0,.5); --overlay:rgba(0,0,0,.6); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131d; --panel:#161d2a; --panel2:#1b2332; --fg:#e7ecf5; --muted:#93a0b8; --line:#273145;
+  --accent:#6b93f5; --accent-fg:#0b1220; --accent-soft:#1d2a47;
+  --good:#4ade80; --good-soft:#123222; --bad:#f87171; --bad-soft:#3a1717; --warn:#fbbf24; --warn-soft:#3a2c0c;
+  --shadow:0 10px 30px rgba(0,0,0,.5); --overlay:rgba(0,0,0,.6); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--panel)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:10px}
+header.top .shop{font-family:var(--f-head);font-weight:700;font-size:17px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#saveStatus{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.ok{background:var(--good)} .dot.busy{background:var(--warn)} .dot.err{background:var(--bad)}
+main{max-width:1000px;margin:0 auto;padding-block:16px calc(var(--nav-h) + 24px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-family:var(--f-head);font-size:22px;margin:0 0 14px;text-wrap:balance}
+h2{font-family:var(--f-head);font-size:16px;margin:0 0 10px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--panel);border-top:1px solid var(--line);display:flex;
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs button{flex:1;background:none;border:0;color:var(--muted);height:var(--nav-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:500 11px var(--f-body);cursor:pointer}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button.on{color:var(--accent)}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.toolbar .grow{flex:1}
+.btn{background:var(--accent);color:var(--accent-fg);border:0;border-radius:10px;padding:10px 14px;font:600 14px var(--f-body);cursor:pointer;white-space:nowrap;min-height:40px}
+.btn:focus-visible,nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.sec{background:var(--panel);color:var(--fg);border:1px solid var(--line)}
+.btn.green{background:var(--good);color:var(--panel)} .btn.red{background:var(--bad);color:var(--panel)}
+.btn.sm{padding:6px 10px;font-size:13px;min-height:32px;border-radius:8px}
+.btn.block{width:100%}
+input,select,textarea{font:16px var(--f-body);padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--fg);width:100%;min-width:0}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+.search{flex:1 1 200px;max-width:380px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;min-width:0}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.stat .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.stat .v{font-family:var(--f-head);font-size:20px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.stat .s{color:var(--muted);font-size:12px;margin-top:2px}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+.tablewrap{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+.card .tablewrap{border:0;border-radius:0}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid var(--line);text-align:start;vertical-align:middle}
+th{background:var(--panel2);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+td.n,th.n{text-align:end;white-space:nowrap;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .pos{color:var(--good);font-weight:600} .neg{color:var(--bad);font-weight:600} .warn{color:var(--warn);font-weight:600}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent)}
+.badge.red{background:var(--bad-soft);color:var(--bad)} .badge.green{background:var(--good-soft);color:var(--good)} .badge.orange{background:var(--warn-soft);color:var(--warn)}
+.actions{white-space:nowrap;text-align:end}
+.actions .btn{margin:2px 0}
+.empty{padding:26px 16px;text-align:center;color:var(--muted)}
+.banner{background:var(--warn-soft);color:var(--warn);padding:10px 14px;border-radius:12px;margin-bottom:14px;font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.note{font-size:13px;color:var(--muted);margin:0 0 12px}
+/* Tableaux en cartes sur téléphone */
+@media(max-width:700px){
+  .tablewrap{overflow:visible;background:none;border:0}
+  .tablewrap table,.tablewrap tbody,.tablewrap tr,.tablewrap td{display:block;width:100%}
+  .tablewrap thead{display:none}
+  .tablewrap tr{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;padding:6px 12px}
+  .card .tablewrap tr{background:var(--panel2)}
+  .tablewrap td{border:0;padding:5px 0;display:flex;justify-content:space-between;gap:12px;text-align:end;align-items:center}
+  .tablewrap td::before{content:attr(data-label);color:var(--muted);font-size:12px;text-align:start;flex-shrink:0;font-weight:600}
+  .tablewrap td[data-label=""]::before{display:none}
+  .tablewrap td.first{font-size:15px;justify-content:flex-start;text-align:start;display:block}
+  .tablewrap td.first::before{display:none}
+  .tablewrap td.actions{justify-content:flex-end;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:4px;padding-top:8px}
+  .tablewrap td.actions::before{display:none}
+  .items td{display:block!important;text-align:start!important}
+  .items td::before{display:block!important;margin-bottom:4px}
+}
+/* Modal */
+.overlay{position:fixed;inset:0;background:var(--overlay);z-index:50;display:flex;align-items:flex-start;justify-content:center;overflow:auto;
+  padding:calc(24px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+.overlay[hidden]{display:none!important}
+.box{background:var(--panel);border-radius:16px;width:100%;max-width:640px;box-shadow:var(--shadow)}
+.box.wide{max-width:1000px}
+.mhead{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);border-radius:16px 16px 0 0;z-index:2}
+.mhead h3{margin:0;font:700 17px var(--f-head)}
+.mhead button{background:none;border:0;font-size:28px;line-height:1;cursor:pointer;color:var(--muted);width:40px;height:40px}
+#mbody{padding:16px}
+@media(max-width:700px){
+  #modal{padding:0}
+  #modal .box{border-radius:0;min-height:100%;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  #modal .mhead{border-radius:0}
+}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form .full{grid-column:1/-1}
+.form>*,.totals>*{min-width:0}
+.row>select,.row>input{flex:1;min-width:0}
+select{max-width:100%;text-overflow:ellipsis}
+#mbody{overflow-x:hidden}
+@media(max-width:560px){.form{grid-template-columns:1fr}}
+label.l,.form label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.row{display:flex;gap:6px}
+.totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px;align-items:end}
+.totals .big{font:700 20px var(--f-head);font-variant-numeric:tabular-nums}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
+@media(max-width:560px){.mfoot .btn{flex:1}}
+/* Dialogue */
+#dlg{z-index:70;align-items:center}
+#dlg .box{max-width:400px;padding:18px}
+#dmsg{margin:0 0 14px;white-space:pre-line;line-height:1.45}
+#dinput{margin-bottom:14px}
+/* Plus */
+.morelist{display:grid;gap:8px}
+.morelist button{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;font:600 15px var(--f-body);color:var(--fg);cursor:pointer;text-align:start}
+.morelist button small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+.morelist svg{width:22px;height:22px;color:var(--accent);flex-shrink:0}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:80;max-width:calc(100% - 32px)}
+/* Facture (papier, toujours clair) */
+.inv{background:#fff;color:#111;padding:18px;border:1px solid var(--line);border-radius:10px;font:13px Arial,sans-serif;overflow-x:auto}
+.inv table{min-width:420px}
+.inv th{background:#eee;color:#111}
+.inv th,.inv td{border-bottom:1px solid #ddd;color:#111}
+@media(prefers-reduced-motion:no-preference){.btn{transition:filter .15s}.btn:active{filter:brightness(.92)}}
+/* ================= Nouveau design : style app iOS, carte « caisse » en haut, listes groupées ================= */
+:root{
+  --bg:#f2f3f7; --panel:#ffffff; --panel2:#f6f7fb; --fg:#11162a; --muted:#6b7187; --line:#e7e9f0;
+  --accent:#3b4fe4; --accent-2:#6a4cf0; --accent-fg:#ffffff; --accent-soft:#eceefe;
+  --hero-1:#2b3cd6; --hero-2:#6a3fe8; --hero-fg:#ffffff;
+  --shadow:0 1px 2px rgba(17,22,42,.04),0 6px 20px rgba(17,22,42,.06);
+  --radius:18px; --nav-h:64px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b0d14; --panel:#161925; --panel2:#1c2030; --fg:#eef0f8; --muted:#9aa0b8; --line:#262a3b;
+  --accent:#8193ff; --accent-2:#a28bff; --accent-fg:#0b0d14; --accent-soft:#22274a; --hero-1:#2a37a8; --hero-2:#5636b8; --hero-fg:#ffffff;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35)}}
+:root[data-theme="dark"]{
+  --bg:#0b0d14; --panel:#161925; --panel2:#1c2030; --fg:#eef0f8; --muted:#9aa0b8; --line:#262a3b;
+  --accent:#8193ff; --accent-2:#a28bff; --accent-fg:#0b0d14; --accent-soft:#22274a; --hero-1:#2a37a8; --hero-2:#5636b8; --hero-fg:#ffffff;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35)}
+body{font-size:16px;letter-spacing:-.01em}
+body::before{background:var(--bg)}
+header.top{background:color-mix(in srgb,var(--bg) 85%,transparent);-webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);border-bottom:0;padding-block:12px}
+header.top .shop{font-size:15px;font-weight:600;color:var(--muted)}
+#langBtn{border-radius:99px;min-width:40px;min-height:34px;font-weight:700;background:var(--panel);box-shadow:var(--shadow);border:0}
+h1{font-size:30px;font-weight:800;letter-spacing:-.03em;margin:4px 0 16px}
+h2{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.card,.stat,.tablewrap{border:0;border-radius:var(--radius);box-shadow:var(--shadow)}
+.card{padding:16px}
+.btn{border-radius:12px;min-height:44px;font-weight:600;padding:10px 16px}
+.btn.sm{border-radius:99px;min-height:32px;padding:6px 12px;font-size:13px}
+.btn.sec{border:0;background:var(--panel);box-shadow:var(--shadow)}
+.card .btn.sec,.box .btn.sec{background:var(--panel2);box-shadow:none}
+.btn.green{background:var(--good);color:#fff} .btn.red{background:var(--bad);color:#fff}
+.btn.red.sm{background:var(--bad-soft);color:var(--bad)}
+input,select,textarea{border:0;background:var(--panel2);border-radius:12px;padding:12px 14px;box-shadow:inset 0 0 0 1px var(--line)}
+input:focus,select:focus,textarea:focus{outline:0;box-shadow:inset 0 0 0 2px var(--accent)}
+.search{background:var(--panel);box-shadow:var(--shadow)}
+.note{font-size:14px}
+.banner{border-radius:14px;font-size:14px}
+/* Barre d'onglets */
+nav.tabs{background:color-mix(in srgb,var(--panel) 82%,transparent);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:1px solid var(--line)}
+nav.tabs button{font-size:10.5px;font-weight:600;position:relative}
+nav.tabs button.on svg{stroke-width:2.4}
+nav.tabs button.on::after{content:"";position:absolute;top:6px;width:28px;height:3px;border-radius:3px;background:var(--accent)}
+/* Carte caisse (accueil) */
+.hero{background:linear-gradient(135deg,var(--hero-1),var(--hero-2));color:var(--hero-fg);border-radius:24px;padding:20px;margin-bottom:16px;box-shadow:0 12px 30px color-mix(in srgb,var(--hero-1) 35%,transparent)}
+.hero .hl{font-size:13px;opacity:.85;font-weight:500}
+.hero .hv{font-size:38px;font-weight:800;letter-spacing:-.03em;margin:4px 0 14px;font-variant-numeric:tabular-nums;line-height:1.05}
+.hero .hv small{font-size:18px;font-weight:700;opacity:.85}
+.hero .chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hero .chip{background:rgba(255,255,255,.14);border-radius:14px;padding:10px 12px}
+.hero .chip b{display:block;font-size:16px;font-variant-numeric:tabular-nums;margin-top:2px}
+.hero .chip span{font-size:12px;opacity:.85}
+/* Actions rapides */
+.actions4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
+.actions4 button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--fg);font:600 12px var(--f-body);cursor:pointer;padding:0}
+.actions4 .ic{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;background:var(--panel);box-shadow:var(--shadow);color:var(--accent)}
+.actions4 .ic svg{width:26px;height:26px}
+.actions4 button:nth-child(1) .ic{background:var(--good);color:#fff}
+.actions4 button:nth-child(2) .ic{background:var(--accent);color:#fff}
+/* Tuiles */
+.stats{grid-template-columns:1fr 1fr;gap:12px}
+.stat{padding:14px}
+.stat .l{text-transform:none;letter-spacing:0;font-size:13px;font-weight:600}
+.stat .v{font-size:21px;font-weight:800;letter-spacing:-.02em}
+/* Listes groupées (accueil) */
+.sect{display:flex;justify-content:space-between;align-items:baseline;margin:22px 4px 8px}
+.sect h2{margin:0}
+.sect a{color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;text-decoration:none}
+.list{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.li{display:flex;align-items:center;gap:12px;padding:12px 14px;width:100%;background:none;border:0;color:inherit;font:inherit;text-align:start;cursor:pointer}
+.li+.li{border-top:1px solid var(--line)}
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:15px;flex-shrink:0;background:var(--accent-soft);color:var(--accent)}
+.av.red{background:var(--bad-soft);color:var(--bad)} .av.orange{background:var(--warn-soft);color:var(--warn)} .av.green{background:var(--good-soft);color:var(--good)}
+.li .mid{flex:1;min-width:0}
+.li .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .s{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .amt{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.li .chev{color:var(--muted);opacity:.6}
+[dir=rtl] .li .chev{transform:scaleX(-1)}
+.list .empty{padding:20px}
+/* Tableaux en cartes sur téléphone */
+@media(max-width:700px){
+  .tablewrap{box-shadow:none}
+  .tablewrap tr{border:0;border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;margin-bottom:10px;background:var(--panel)}
+  .card .tablewrap tr{box-shadow:none;background:var(--panel2)}
+  .tablewrap td{padding:4px 0;font-size:15px}
+  .tablewrap td::before{font-weight:500;font-size:13px}
+  .tablewrap td.first{font-size:16px;padding-bottom:6px}
+  .tablewrap td.actions{border-top:1px solid var(--line);gap:6px;padding-top:10px;margin-top:6px}
+}
+/* Fenêtres */
+.box{border-radius:22px}
+.mhead{border-bottom:0;padding:14px 16px 6px}
+.mhead h3{font-size:20px;font-weight:800}
+.mhead button{background:var(--panel2);border-radius:50%;width:34px;height:34px;font-size:22px;display:grid;place-items:center}
+.morelist button{background:var(--panel);box-shadow:var(--shadow);border:0;border-radius:16px}
+.morelist svg{background:var(--accent-soft);border-radius:10px;padding:7px;width:36px;height:36px}
+#modal .box{background:var(--bg)}
+#modal .mhead{background:var(--bg)}
+/* Netlify gratuit ajoute un badge fixe en bas à droite : on monte la barre d'onglets au-dessus pour que les boutons restent cliquables. */
+.has-badge nav.tabs{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 66px)}
+.has-badge main{padding-bottom:calc(var(--nav-h) + 90px + env(safe-area-inset-bottom,0px))}
+.has-badge #toast{bottom:calc(var(--nav-h) + 82px + env(safe-area-inset-bottom,0px))}
+#printArea{display:none}
+@media print{
+  body *{visibility:hidden}
+  #printArea,#printArea *{visibility:visible}
+  #printArea{display:block;position:absolute;left:0;top:0;width:100%;background:#fff}
+}
+</style>
+</head>
+<body>
+
+<header class="top"><span class="shop" id="brandName">Magasin PC</span><span id="saveStatus"></span><button class="btn sm sec" id="langBtn" onclick="setLang(LANG === 'ar' ? 'fr' : 'ar')" aria-label="Langue / اللغة">ع</button></header>
+<main id="view"></main>
+<nav class="tabs" id="tabs"></nav>
+
+<div id="modal" class="overlay" hidden>
+  <div class="box" id="mbox">
+    <div class="mhead"><h3 id="mtitle"></h3><button onclick="closeModal()" aria-label="Fermer">×</button></div>
+    <div id="mbody"></div>
+  </div>
+</div>
+<div id="dlg" class="overlay" hidden>
+  <div class="box">
+    <p id="dmsg"></p>
+    <input id="dinput" hidden>
+    <div class="mfoot" style="margin-top:0"><button class="btn sec" id="dcancel">Annuler</button><button class="btn" id="dok">OK</button></div>
+  </div>
+</div>
+<div id="toast" hidden></div>
+<div id="printArea"></div>
+<input type="file" id="importInput" accept=".json,application/json" hidden onchange="importJSON(this)">
+
+<script>
+/* ================== CONSTANTES ================== */
+const KEY = 'pcshop_iphone_v1';
+const CATS = ['PC Portable','PC Bureau','Écran','Accessoire','Pièce détachée','Autre'];
+const ETATS = ['Neuf','Occasion','Reconditionné'];
+const METHODS = ['Espèces','Virement','Chèque','Carte','Autre'];
+const EXP_CATS = ['Loyer','Électricité / Eau','Internet / Téléphone','Salaire','Transport','Réparation','Autre'];
+const IC = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+  sale:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>',
+  pc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>',
+  users:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M16 4a4 4 0 0 1 0 8M22 21c0-3-2-5-4-5.6"/></svg>',
+  more:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
+  box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg>',
+  truck:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M1 5h13v11H1zM14 9h4l4 4v3h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
+  cash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 14.1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 5.1V5a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 10h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z"/></svg>',
+};
+const TABS = [['dashboard','home','Accueil'],['sales','sale','Ventes'],['stock','pc','Stock'],['clients','users','Clients'],['more','more','Plus']];
+const MORE = [['purchases','box','Achats','Entrées de marchandise'],['suppliers','truck','Fournisseurs','Ce que vous devez'],['payments','cash','Paiements / Crédit','Encaisser ou payer une tranche'],
+  ['expenses','down','Dépenses','Loyer, électricité, salaires...'],['reports','chart','Rapports','Bénéfice par période'],['settings','gear','Paramètres & Sauvegarde','Magasin, export, import']];
+
+/* ================== OUTILS ================== */
+const $ = s => document.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const num = v => { const n = parseFloat(String(v ?? '').replace(/\s/g,'').replace(',', '.')); return isNaN(n) ? 0 : n; };
+const r2 = n => Math.round(n * 100) / 100;
+const fmt = n => (Number(n) || 0).toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + L(' DH', ' درهم');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const validDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : today();
+const fdate = d => d ? d.split('-').reverse().join('/') : '';
+const val = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
+const sum = (arr, f) => arr.reduce((a, x) => a + (f(x) || 0), 0);
+const opts = (list, sel) => list.map(o => `<option value="${esc(o)}" ${o === sel ? 'selected' : ''}>${esc(o)}</option>`).join('');
+/* ================== LANGUE (Français / العربية) ================== */
+let LANG = (() => { try { return localStorage.getItem('pcshop_lang') || 'fr'; } catch (e) { return 'fr'; } })();
+const L = (fr, ar) => LANG === 'ar' ? ar : fr;
+const AR = {
+  // Navigation
+  'Tableau de bord':'لوحة التحكم', 'Accueil':'الرئيسية', 'Ventes':'المبيعات', 'Achats':'المشتريات', 'Stock':'المخزون', 'Stock / Produits':'المخزون / المنتوجات',
+  'Clients':'الزبناء', 'Fournisseurs':'المزودين', 'Paiements / Crédit':'الأداءات / الكريدي', 'Dépenses':'المصاريف', 'Dépenses (charges du magasin)':'المصاريف (تكاليف المحل)',
+  'Rapports':'التقارير', 'Paramètres':'الإعدادات', 'Paramètres & Sauvegarde':'الإعدادات والنسخ الاحتياطي', 'Plus':'المزيد', 'Vente & Achat':'بيع وشراء',
+  'Entrées de marchandise':'دخول السلعة', 'Ce que vous devez':'اللي عليك', 'Encaisser ou payer une tranche':'استلم ولا خلص دفعة',
+  'Loyer, électricité, salaires...':'الكراء، الضو، الأجور...', 'Bénéfice par période':'الربح حسب الفترة', 'Magasin, export, import':'المحل والنسخ الاحتياطي',
+  // Boutons généraux
+  'OK':'واخا', 'Annuler':'إلغاء', 'Confirmer':'تأكيد', 'Enregistrer':'سجل', 'Supprimer':'مسح', 'Modifier':'بدل', 'Fermer':'سد', 'Voir':'شوف', 'Tout':'كلشي',
+  'Continuer':'كمل', 'Remplacer':'بدل', 'Enregistré':'تسجل', 'Non enregistré':'ما تسجلش', 'Rechercher...':'قلب...', 'Choisir...':'اختار...', '— Choisir —':'— اختار —',
+  // Accueil
+  '+ Vente':'+ بيع', '+ Achat':'+ شرا', '+ Nouvelle vente':'+ بيع جديد', '+ Nouvel achat':'+ شرا جديد', 'Encaisser client':'استلم من زبون', 'Payer fournisseur':'خلص مزود',
+  'Encaisser un client':'استلم من زبون', 'Payer un fournisseur':'خلص مزود', '💵 Encaisser un client':'💵 استلم من زبون', '💸 Payer un fournisseur':'💸 خلص مزود',
+  "Ventes aujourd'hui":'مبيعات اليوم', 'Ventes ce mois':'مبيعات هاد الشهر', 'Bénéfice net du mois':'الربح الصافي ديال الشهر', 'Bénéfice net ce mois':'الربح الصافي ديال الشهر',
+  'Valeur du stock':'قيمة المخزون', 'Valeur du stock (achat)':'قيمة المخزون (بثمن الشرا)', 'Crédit clients':'كريدي الزبناء', 'Crédit clients (on vous doit)':'كريدي الزبناء (اللي ليك)',
+  'Dettes fournisseurs':'ديون المزودين', 'Dettes fournisseurs (vous devez)':'ديون المزودين (اللي عليك)',
+  'Clients qui doivent':'زبناء عليهم الكريدي', "👤 Clients qui doivent de l'argent":'👤 زبناء عليهم الكريدي', 'Fournisseurs à payer':'مزودين خاصك تخلصهم', '🏭 Fournisseurs à payer':'🏭 مزودين خاصك تخلصهم',
+  'Stock faible':'مخزون ناقص', '⚠️ Stock faible':'⚠️ مخزون ناقص', 'Dernières ventes':'آخر المبيعات', '🧾 Dernières ventes':'🧾 آخر المبيعات',
+  'Aucun crédit client':'ما كاين حتى كريدي', 'Aucun crédit client 👍':'ما كاين حتى كريدي 👍', 'Aucune dette fournisseur':'ما كاين حتى دين', 'Aucune dette fournisseur 👍':'ما كاين حتى دين 👍',
+  'Aucun produit en stock faible':'ما كاين حتى منتوج ناقص', 'Aucune vente':'ما كاين حتى بيع', 'Client passager':'زبون عابر', 'Configurer':'ضبط', 'Faire une copie':'دير نسخة',
+  'Bienvenue 👋':'مرحبا 👋',
+  // Colonnes
+  'Client':'الزبون', 'Téléphone':'التيليفون', 'Reste':'الباقي', 'Fournisseur':'المزود', 'Produit':'المنتوج', 'Qté':'الكمية', 'Seuil':'الحد', 'N°':'الرقم', 'Date':'التاريخ',
+  'Total':'المجموع', 'Relevé':'كشف الحساب', 'Encaisser':'استلم', 'Payer':'خلص', 'Facture':'الفاتورة', 'État':'الحالة', 'Achat':'الشرا', 'Vente':'البيع', 'Marge':'الهامش',
+  'Prix achat':'ثمن الشرا', 'Prix vente':'ثمن البيع', 'Catégorie':'النوع', 'Historique':'السجل', 'Opération':'العملية', 'Tiers':'الطرف', 'Prix':'الثمن', 'Nom':'السمية', 'CIN':'البطاقة الوطنية',
+  'Total acheté':'مجموع الشرا', 'Total acheté chez lui':'مجموع الشرا من عندو', 'Reste à encaisser':'الباقي للاستلام', 'Reste à payer':'الباقي للخلاص', 'Articles':'السلع', 'Bénéfice':'الربح',
+  'Payé':'المخلص', 'Doit':'عليه', 'Acheté':'شريتي', 'Solde':'الرصيد', 'Type':'النوع', 'Mode':'طريقة الأداء', 'Note':'ملاحظة', 'Montant':'المبلغ', 'Description':'الوصف', 'CA':'رقم المعاملات',
+  'Adresse':'العنوان', 'Prix de vente':'ثمن البيع', "Prix d'achat":'ثمن الشرا', 'Soldé':'خالص',
+  // Catégories, états, modes
+  'PC Portable':'حاسوب محمول', 'PC Bureau':'حاسوب مكتبي', 'Écran':'شاشة', 'Accessoire':'إكسسوار', 'Pièce détachée':'قطعة غيار', 'Autre':'أخرى',
+  'Neuf':'جديد', 'Occasion':'مستعمل', 'Reconditionné':'مجدد', 'Espèces':'كاش', 'Virement':'تحويل', 'Chèque':'شيك', 'Carte':'بطاقة',
+  'Loyer':'الكراء', 'Électricité / Eau':'الضو / الما', 'Internet / Téléphone':'الأنترنيت / التيليفون', 'Salaire':'الأجرة', 'Transport':'النقل', 'Réparation':'الإصلاح',
+  'Toutes catégories':'كاع الأنواع',
+  // Stock / produit
+  '+ Produit':'+ منتوج', '+ Nouveau produit':'+ منتوج جديد', 'Rechercher un produit...':'قلب على منتوج...', 'Modifier le produit':'بدل المنتوج', 'Nouveau produit':'منتوج جديد',
+  'Désignation (marque + modèle)':'السمية (الماركة + الموديل)', 'Désignation (marque + modèle) *':'السمية (الماركة + الموديل) *', 'Processeur':'المعالج', 'RAM':'الرام', 'Stockage':'التخزين',
+  'Carte graphique':'كارت graphique', 'Seuil stock faible':'الحد ديال المخزون الناقص', "Prix d'achat (DH)":'ثمن الشرا (درهم)', 'Prix de vente (DH)':'ثمن البيع (درهم)',
+  'Quantité en stock':'الكمية فالمخزون', 'Notes':'ملاحظات', 'Valeur (prix d\'achat) :':'القيمة (بثمن الشرا) :', 'Valeur stock :':'قيمة المخزون :',
+  'Aucun produit. Ajoutez-en un ou enregistrez un achat.':'ما كاين حتى منتوج. زيد واحد ولا سجل شرا.', 'Aucun produit. Ajoutez-en un ou faites un achat.':'ما كاين حتى منتوج. زيد واحد ولا سجل شرا.',
+  'Aucun mouvement':'ما كاين حتى حركة', 'La désignation est obligatoire.':'السمية ضرورية.', 'Produit enregistré':'تسجل المنتوج', 'Supprimer ce produit ?':'نمسح هاد المنتوج؟',
+  'Ce produit apparaît dans des ventes ou des achats, il ne peut pas être supprimé. Mettez sa quantité à 0.':'هاد المنتوج كاين فمبيعات ولا مشتريات، ما يمكنش يتمسح. رد الكمية ديالو 0.',
+  'Ce produit est utilisé dans des ventes ou achats : impossible de le supprimer. Vous pouvez mettre sa quantité à 0.':'هاد المنتوج كاين فمبيعات ولا مشتريات، ما يمكنش يتمسح. رد الكمية ديالو 0.',
+  // Clients / fournisseurs
+  '+ Client':'+ زبون', '+ Fournisseur':'+ مزود', '+ Nouveau client':'+ زبون جديد', '+ Nouveau fournisseur':'+ مزود جديد', 'Ceux qui doivent':'اللي عليهم', 'Ceux à payer':'اللي خاصك تخلص',
+  'Seulement ceux qui doivent':'غير اللي عليهم', 'Seulement ceux à payer':'غير اللي خاصك تخلص', 'Total à encaisser :':'المجموع للاستلام :', 'Total à payer :':'المجموع للخلاص :',
+  'Total crédit :':'مجموع الكريدي :', 'Total dettes :':'مجموع الديون :', 'Aucun client':'ما كاين حتى زبون', 'Aucun fournisseur':'ما كاين حتى مزود',
+  'Modifier client':'بدل الزبون', 'Modifier fournisseur':'بدل المزود', 'Nouveau client':'زبون جديد', 'Nouveau fournisseur':'مزود جديد', 'Nom *':'السمية *', 'ICE / RC':'ICE / RC',
+  "Crédit d'avant (ce qu'il vous devait déjà) – DH":'الكريدي القديم (اللي كان عليه من قبل) – درهم', "Dette d'avant (ce que vous lui deviez déjà) – DH":'الدين القديم (اللي كان عليك من قبل) – درهم',
+  "Crédit initial (ce que le client vous devait avant l'application) – DH":'الكريدي القديم (اللي كان عليه من قبل) – درهم', "Dette initiale (ce que vous lui deviez avant l'application) – DH":'الدين القديم (اللي كان عليك من قبل) – درهم',
+  'Le nom est obligatoire.':'السمية ضرورية.', 'Impossible de supprimer : des opérations sont liées à ce nom.':'ما يمكنش يتمسح: كاينين عمليات مرتبطين بهاد السمية.',
+  'Impossible de supprimer : il y a des opérations liées.':'ما يمكنش يتمسح: كاينين عمليات مرتبطين.', 'Supprimer ?':'نمسح؟',
+  'Reste à encaisser :':'الباقي للاستلام :', 'Reste à payer :':'الباقي للخلاص :', 'Télécharger le relevé':'تيليشارجي كشف الحساب', '🖨️ Imprimer':'🖨️ طبع', '💵 Encaisser':'💵 استلم', '💸 Payer':'💸 خلص',
+  "Crédit d'avant":'الكريدي القديم', "Dette d'avant":'الدين القديم', 'Crédit initial':'الكريدي القديم', 'Dette initiale':'الدين القديم', 'Aucune opération':'ما كاين حتى عملية',
+  // Formulaire vente / achat
+  'Nouvelle vente':'بيع جديد', 'Nouvel achat':'شرا جديد', 'Nouvel achat (entrée en stock)':'شرا جديد (دخول السلعة)', 'Client passager (sans crédit)':'زبون عابر (بلا كريدي)',
+  '— Client passager (sans crédit) —':'— زبون عابر (بلا كريدي) —', 'Fournisseur *':'المزود *', 'Prix unitaire':'ثمن الوحدة', 'N° série':'الرقم التسلسلي', 'Choisir un produit...':'اختار منتوج...',
+  '— Choisir un produit —':'— اختار منتوج —', '➕ Nouveau produit...':'➕ منتوج جديد...', 'optionnel':'اختياري', 'Prix de vente prévu (DH)':'ثمن البيع المتوقع (درهم)', 'Prix de vente prévu':'ثمن البيع المتوقع',
+  '+ Ajouter un article':'+ زيد سلعة', 'Remise (DH)':'التخفيض (درهم)', 'TOTAL':'المجموع', 'Payé maintenant (DH)':'المخلص دابا (درهم)', 'Montant payé maintenant (DH)':'المخلص دابا (درهم)',
+  'RESTE (crédit client)':'الباقي (كريدي الزبون)', 'RESTE (dette fournisseur)':'الباقي (دين المزود)', 'Garantie, remarque...':'الضمانة، ملاحظة...',
+  'Enregistrer la vente':'سجل البيع', "Enregistrer l'achat":'سجل الشرا', '✔ Enregistrer la vente':'✔ سجل البيع', "✔ Enregistrer l'achat":'✔ سجل الشرا',
+  'Bénéfice estimé :':'الربح المتوقع :', '· Crédit actuel du client :':'· الكريدي الحالي ديال الزبون :', 'Nom du nouveau client':'سمية الزبون الجديد', 'Nom du nouveau fournisseur':'سمية المزود الجديد',
+  'Nom du nouveau client :':'سمية الزبون الجديد :', 'Nom du nouveau fournisseur :':'سمية المزود الجديد :', 'Téléphone (laisser vide si inconnu)':'التيليفون (خليه خاوي إلا ما عرفتيهش)', 'Téléphone (optionnel) :':'التيليفون (اختياري) :',
+  'Ajoutez au moins un produit.':'زيد على الأقل منتوج واحد.', 'Quantité invalide.':'الكمية ماشي صحيحة.', 'Total invalide.':'المجموع ماشي صحيح.',
+  'Le total ne peut pas être négatif. Vérifiez la remise.':'المجموع ما يمكنش يكون ناقص. شوف التخفيض.', 'Le montant payé dépasse le total.':'المبلغ المخلص كثر من المجموع.',
+  'Il reste un montant non payé. Choisissez un client (ou ajoutez-le avec +) pour enregistrer le crédit.':'باقي مبلغ ما تخلصش. اختار زبون (ولا زيدو ب +) باش يتسجل الكريدي.',
+  'Il reste un montant non payé : choisissez (ou ajoutez avec +) un client pour enregistrer le crédit.':'باقي مبلغ ما تخلصش. اختار زبون (ولا زيدو ب +) باش يتسجل الكريدي.',
+  "Aucun produit en stock. Enregistrez d'abord un achat ou ajoutez un produit.":'ما كاين حتى منتوج فالمخزون. سجل شرا ولا زيد منتوج أولا.',
+  "Aucun produit en stock. Ajoutez d'abord un achat ou un produit.":'ما كاين حتى منتوج فالمخزون. سجل شرا ولا زيد منتوج أولا.',
+  'Choisissez un fournisseur (ou ajoutez-le avec +).':'اختار مزود (ولا زيدو ب +).', 'Choisissez un fournisseur (ou ajoutez-en un avec +).':'اختار مزود (ولا زيدو ب +).',
+  'Donnez une désignation au nouveau produit.':'عطي سمية للمنتوج الجديد.', 'Achat enregistré, stock mis à jour':'تسجل الشرا، المخزون تبدل', 'Achat enregistré ✅ Le stock a été mis à jour.':'تسجل الشرا ✅ المخزون تبدل.',
+  // Listes ventes / achats
+  'N°, client, produit, n° série...':'الرقم، الزبون، المنتوج، الرقم التسلسلي...', 'N°, fournisseur, produit...':'الرقم، المزود، المنتوج...', 'Aucun achat':'ما كاين حتى شرا',
+  'Bénéfice de cette vente :':'الربح ديال هاد البيع :', 'Imprimer':'طبع', 'Partager la facture':'بارطاجي الفاتورة', '🖨️ Imprimer facture':'🖨️ طبع الفاتورة',
+  'FACTURE':'فاتورة', 'Client :':'الزبون :', 'Désignation':'السمية', 'P.U.':'ث.و', 'Remise':'التخفيض', 'Signature client':'توقيع الزبون', 'Cachet du magasin':'طابع المحل',
+  'RELEVÉ DE COMPTE':'كشف الحساب', 'Débit':'عليه', 'Fournisseur :':'المزود :', 'Remise :':'التخفيض :', 'Total :':'المجموع :', 'Payé :':'المخلص :', 'Reste :':'الباقي :', 'Bénéfice :':'الربح :',
+  'Date :':'التاريخ :', 'Mode :':'طريقة الأداء :', 'Coût':'التكلفة', 'Notes :':'ملاحظات :',
+  // Paiements
+  'Tous':'الكل', 'Reçus des clients':'المستلم من الزبناء', 'Versés aux fournisseurs':'المخلص للمزودين', 'Reçu client':'مستلم من زبون', 'Versé fournisseur':'مخلص لمزود', 'Aucun paiement':'ما كاين حتى أداء',
+  'Aucun client pour le moment.':'ما كاين حتى زبون دابا.', 'Aucun fournisseur pour le moment.':'ما كاين حتى مزود دابا.', 'Aucun client.':'ما كاين حتى زبون.', 'Aucun fournisseur.':'ما كاين حتى مزود.',
+  'Encaisser un paiement client':'استلم أداء من زبون', 'Client *':'الزبون *', 'Montant (DH)':'المبلغ (درهم)', 'Montant (DH) *':'المبلغ (درهم) *', 'N° chèque, tranche...':'رقم الشيك، دفعة...',
+  'Reste actuel :':'الباقي دابا :', 'Tout payer':'خلص كلشي', 'Choisissez un nom.':'اختار سمية.', 'Entrez un montant supérieur à 0.':'دخل مبلغ كبر من 0.', 'Montant invalide.':'المبلغ ماشي صحيح.',
+  'Paiement enregistré':'تسجل الأداء', 'Supprimer ce paiement ?':'نمسح هاد الأداء؟',
+  // Dépenses
+  '+ Dépense':'+ مصروف', '+ Nouvelle dépense':'+ مصروف جديد', 'Nouvelle dépense':'مصروف جديد', 'Total du mois :':'مجموع الشهر :', 'Aucune dépense ce mois':'ما كاين حتى مصروف هاد الشهر',
+  'Dépense enregistrée':'تسجل المصروف', 'Supprimer cette dépense ?':'نمسح هاد المصروف؟',
+  // Rapports
+  'au':'حتى', 'Du':'من', "Aujourd'hui":'اليوم', 'Ce mois':'هاد الشهر', 'Cette année':'هاد العام', "Chiffre d'affaires":'رقم المعاملات', 'Coût des produits vendus':'تكلفة السلعة المبيوعة',
+  'Bénéfice brut':'الربح الخام', 'Bénéfice net':'الربح الصافي', 'Achats (marchandise)':'المشتريات (السلعة)', 'Argent entré':'الفلوس اللي دخلات', 'Argent sorti':'الفلوس اللي خرجات',
+  'Argent entré (caisse)':'الفلوس اللي دخلات (الصندوق)', 'Argent sorti (caisse)':'الفلوس اللي خرجات (الصندوق)', 'ventes + crédits encaissés':'المبيعات + الكريدي المستلم',
+  'ventes payées + crédits encaissés':'المبيعات المخلصة + الكريدي المستلم', 'fournisseurs + dépenses':'المزودين + المصاريف', 'Produits les plus rentables':'المنتوجات اللي ربحات كثر',
+  'Dépenses par catégorie':'المصاريف حسب النوع', 'Aucune vente sur la période':'ما كاين حتى بيع فهاد الفترة', 'Aucune dépense sur la période':'ما كاين حتى مصروف فهاد الفترة',
+  // Paramètres
+  'Magasin (sur les factures)':'المحل (كيبان فالفواتير)', '🏪 Informations du magasin (sur les factures)':'🏪 معلومات المحل (كتبان فالفواتير)', 'Nom du magasin':'سمية المحل',
+  'ICE / RC / Patente':'ICE / RC / الباطانطا', 'ICE / RC / Patente (optionnel)':'ICE / RC / الباطانطا (اختياري)', 'Message en bas de facture':'ميساج لتحت فالفاتورة', 'Sauvegarde':'النسخة الاحتياطية',
+  "Vos données sont enregistrées automatiquement dans ce téléphone. Si l'application est supprimée, elles sont perdues : faites une copie chaque semaine (envoyez-la sur WhatsApp, iCloud ou par e-mail).":'البيانات ديالك كتسجل أوتوماتيكيا فهاد التيليفون. إلا تمسح التطبيق كيمشيو: دير نسخة كل سيمانة (صيفطها فواتساب، iCloud ولا الإيميل).',
+  'Télécharger une copie':'تيليشارجي نسخة', 'Restaurer une copie':'رجع نسخة', 'Une copie faite sur le PC (fichier .json) peut aussi être restaurée ici.':'نسخة مدارة فالـ PC (ملف .json) تقدر ترجعها هنا حتى هي.',
+  'Zone dangereuse':'منطقة خطيرة', '⚠️ Zone dangereuse':'⚠️ منطقة خطيرة', 'Effacer toutes les données':'مسح كاع البيانات', 'Paramètres enregistrés':'تسجلات الإعدادات', 'Enregistré ✅':'تسجل ✅',
+  'Données effacées':'تمسحات البيانات', 'Copie restaurée':'رجعات النسخة', 'Sauvegarde restaurée ✅':'رجعات النسخة ✅', 'Tapez EFFACER pour confirmer':'كتب EFFACER باش تأكد',
+  "Remplacer TOUTES les données actuelles par cette copie ?":'نبدلو كاع البيانات الحالية بهاد النسخة؟', 'Remplacer TOUTES les données actuelles par cette sauvegarde ?':'نبدلو كاع البيانات الحالية بهاد النسخة؟',
+  "Effacer TOUTES les données (produits, ventes, clients...) ?\nTéléchargez d'abord une copie.":'نمسحو كاع البيانات (منتوجات، مبيعات، زبناء...)؟\nتيليشارجي نسخة قبل.',
+  "Effacer TOUTES les données (produits, ventes, clients...) ? Exportez d'abord une sauvegarde !":'نمسحو كاع البيانات (منتوجات، مبيعات، زبناء...)؟ دير نسخة قبل!',
+  'Vos données sont seulement dans ce téléphone. Faites une copie de sauvegarde chaque semaine.':'البيانات ديالك غير فهاد التيليفون. دير نسخة احتياطية كل سيمانة.',
+  'Fichier prêt':'الملف واجد', 'Langue':'اللغة',
+  // PC – sauvegarde fichier
+  '💾 Sauvegarde automatique dans un fichier':'💾 حفظ أوتوماتيكي فملف', '📤 Export / Import manuel':'📤 نسخة يدوية', '⬇️ Exporter une sauvegarde':'⬇️ دير نسخة', '⬆️ Restaurer une sauvegarde':'⬆️ رجع نسخة',
+  'Créer / lier un nouveau fichier':'دير / ربط ملف جديد', 'Ouvrir un fichier existant':'حل ملف موجود', 'Reconnecter':'عاود الربط', 'Délier':'فك الربط',
+  'Conseil : liez un fichier dans un dossier synchronisé (Google Drive, OneDrive) ou sur une clé USB pour ne jamais perdre vos données.':'نصيحة: ربط ملف فدوسي ديال Google Drive ولا OneDrive ولا فكلي USB باش ما تضيع البيانات أبدا.',
+  '🟢 Un fichier est lié : chaque modification y est enregistrée automatiquement.':'🟢 كاين ملف مربوط: كل تبديل كيتسجل فيه أوتوماتيكيا.', '🟠 Un fichier est lié mais doit être reconnecté.':'🟠 كاين ملف مربوط ولكن خاصو يتعاود يتربط.',
+  '🟡 Aucun fichier lié. Les données sont seulement dans ce navigateur.':'🟡 ما كاين حتى ملف مربوط. البيانات غير فهاد المتصفح.',
+  '🟢 Sauvegarde fichier active':'🟢 الحفظ فالملف خدام', '🟠 Fichier à reconnecter':'🟠 الملف خاصو يتربط', '🟡 Données dans le navigateur':'🟡 البيانات فالمتصفح',
+  '(liez un fichier dans Paramètres)':'(ربط ملف فالإعدادات)', 'Pensez à exporter une sauvegarde':'ما تنساش دير نسخة', 'Le fichier de sauvegarde doit être reconnecté.':'ملف الحفظ خاصو يتعاود يتربط.',
+  '⚠️ Vos données sont enregistrées seulement dans ce navigateur. Pour plus de sécurité, liez un fichier de sauvegarde ou exportez régulièrement.':'⚠️ البيانات ديالك مسجلة غير فهاد المتصفح. باش تكون فالأمان، ربط ملف ولا دير نسخ ديما.',
+  'Délier le fichier de sauvegarde ?':'نفكو ربط ملف الحفظ؟', 'Ce fichier ne contient pas de données valides.':'هاد الملف ما فيهش بيانات صحيحة.', 'Remplacer les données actuelles par celles du fichier ?':'نبدلو البيانات الحالية بديال الملف؟',
+  'Fichier lié ✅ Chaque modification sera enregistrée automatiquement dans ce fichier.':'تربط الملف ✅ كل تبديل غادي يتسجل فيه أوتوماتيكيا.', 'Tapez EFFACER pour confirmer ':'كتب EFFACER باش تأكد',
+  'Seulement ceux à payer ':'غير اللي خاصك تخلص', 'Historique : ':'السجل : ',
+};
+const AR_RX = [
+  [/^(·\s*)?(\d+) vente\(s\)( ·)?$/, '$1$2 بيعة$3'], [/^(\d+) vente\(s\), (\d+) article\(s\)$/, '$1 بيعة، $2 سلعة'], [/^(\d+) achat\(s\)( ·)?$/, '$1 شرية$2'],
+  [/^(·\s*)?(\d+) pièce\(s\)( · vente .+)?$/, (m, a, n, b) => (a || '') + n + ' قطعة' + (b ? b.replace(' · vente ', ' · بثمن البيع ') : '')],
+  [/^(\d+) client\(s\)( doivent)?$/, '$1 زبون'], [/^(\d+) fournisseur\(s\)$/, '$1 مزود'], [/^dépenses (.+)$/, 'المصاريف $1'], [/^Brut (.+) − dépenses (.+)$/, 'الخام $1 − المصاريف $2'],
+  [/^Vente (V-\d+)$/, 'بيع $1'], [/^Achat (A-\d+)$/, 'شرا $1'], [/^Vente (V-\d+) – (.+)$/, 'بيع $1 – $2'], [/^Achat (A-\d+) – (.+)$/, 'شرا $1 – $2'],
+  [/^Payé à la vente (V-\d+)$/, 'تخلص فالبيع $1'], [/^Payé à la réception (A-\d+)$/, 'تخلص فالاستلام $1'], [/^Paiement \((.+?)\)(.*)$/, (m, a, b) => 'أداء (' + tr(a) + ')' + b],
+  [/^Relevé – (.+)$/, 'كشف الحساب – $1'], [/^Historique : (.+)$/, 'السجل : $1'], [/^Vente (V-\d+) enregistrée$/, 'تسجل البيع $1'],
+  [/^(.+) — reste (.+)$/, '$1 — الباقي $2'], [/^(.+) \(stock:? (-?\d+)\)$/, '$1 (المخزون $2)'], [/^(.+) d'avance$/, '$1 مسبقا'], [/^(.+) avance$/, '$1 مسبقا'],
+  [/^Date : (.+)$/, 'التاريخ : $1'], [/^Tél : (.+)$/, 'الهاتف : $1'], [/^Payé \((.+)\)$/, (m, a) => 'المخلص (' + tr(a) + ')'], [/^Dernière copie : (.+)$/, (m, a) => 'آخر نسخة : ' + (a === 'jamais' ? 'أبدا' : a)],
+  [/^Dernier export : (.+)$/, (m, a) => 'آخر نسخة : ' + (a === 'jamais' ? 'أبدا' : a)], [/^Dernière : (.+)$/, 'آخر حفظ : $1'],
+  [/^Stock insuffisant pour [«"] ?(.+?) ?[»"] \(disponible : (-?\d+)\)\.$/, 'المخزون ما كافيش ل « $1 » (كاين : $2).'],
+  [/^Supprimer la vente (V-\d+) \?\nLes produits seront remis en stock\.$/, 'نمسحو البيع $1؟\nالسلعة غادي ترجع للمخزون.'],
+  [/^Supprimer l'achat (A-\d+) \?\nLes quantités seront retirées du stock\.$/, 'نمسحو الشرا $1؟\nالكميات غادي يتنقصو من المخزون.'],
+  [/^Impossible : une partie de [«"] ?(.+?) ?[»"] a déjà été vendue\. Supprimez d'abord les ventes concernées\.$/, 'ما يمكنش: شي حاجة من « $1 » تباعت. مسح المبيعات ديالها أولا.'],
+  [/^Le montant \((.+)\) dépasse le reste \((.+)\)\. (L'enregistrer comme avance|Enregistrer quand même comme avance) \?$/, 'المبلغ ($1) كثر من الباقي ($2). نسجلوه كتسبيق؟'],
+  [/^Vente enregistrée ✅\nImprimer la facture \?$/, 'تسجل البيع ✅\nنطبعو الفاتورة؟'], [/^Restauration impossible : (.+)$/, 'ما قدرناش نرجعو النسخة : $1'],
+  [/^Enregistrement impossible : (.+)$/, 'ما تسجلش : $1'], [/^Erreur : (.+)$/, 'خطأ : $1'],
+];
+function tr(s) {
+  if (LANG !== 'ar' || s == null) return s;
+  const k = String(s).trim(); if (!k) return s;
+  let v = AR[k];
+  if (v === undefined) for (const [rx, rep] of AR_RX) { if (rx.test(k)) { v = k.replace(rx, rep); break; } }
+  return v === undefined ? s : String(s).replace(k, v);
+}
+function translate(root) {
+  if (LANG !== 'ar' || !root) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [];
+  while (w.nextNode()) nodes.push(w.currentNode);
+  nodes.forEach(n => { const p = n.parentNode && n.parentNode.nodeName; if (p === 'SCRIPT' || p === 'STYLE' || p === 'TEXTAREA') return; const t = tr(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; });
+  root.querySelectorAll('[placeholder],[aria-label],[title]').forEach(e => ['placeholder', 'aria-label', 'title'].forEach(a => { if (e.hasAttribute(a)) e.setAttribute(a, tr(e.getAttribute(a))); }));
+}
+function trHTML(html) {
+  if (LANG !== 'ar') return html;
+  const d = document.createElement('div'); d.innerHTML = html; translate(d);
+  return '<div dir="rtl">' + d.innerHTML + '</div>';
+}
+function applyLangAttrs() { document.documentElement.lang = LANG; document.documentElement.dir = LANG === 'ar' ? 'rtl' : 'ltr'; }
+function setLang(l) { LANG = l; try { localStorage.setItem('pcshop_lang', l); } catch (e) {} applyLangAttrs(); render(); }
+function langSwitch() {
+  return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
+}
+applyLangAttrs();
+const NUM = 'type="number" inputmode="decimal" step="0.01"';
+
+/* ================== DIALOGUES (remplacent alert/confirm/prompt) ================== */
+let dlgResolve = null;
+function dialog({msg, input = false, ph = '', ok = 'OK', cancel = 'Annuler', danger = false}) {
+  return new Promise(res => {
+    if (dlgResolve) dlgResolve({ok:false});
+    dlgResolve = res;
+    $('#dmsg').textContent = tr(msg); ok = tr(ok); cancel = cancel && tr(cancel);
+    const inp = $('#dinput'); inp.hidden = !input; inp.value = ''; inp.placeholder = ph;
+    $('#dok').textContent = ok; $('#dok').className = 'btn' + (danger ? ' red' : '');
+    $('#dcancel').hidden = !cancel; $('#dcancel').textContent = cancel || '';
+    $('#dlg').hidden = false;
+    setTimeout(() => (input ? inp : $('#dok')).focus(), 30);
+  });
+}
+function closeDlg(ok) { $('#dlg').hidden = true; const r = dlgResolve; dlgResolve = null; if (r) r({ok, value: $('#dinput').value.trim()}); }
+$('#dok').onclick = () => closeDlg(true);
+$('#dcancel').onclick = () => closeDlg(false);
+$('#dinput').addEventListener('keydown', e => { if (e.key === 'Enter') closeDlg(true); });
+const uiAlert = msg => { dialog({msg, cancel:null}); };
+const uiConfirm = (msg, ok = 'Confirmer', danger = false) => dialog({msg, ok, danger}).then(r => r.ok);
+const uiPrompt = (msg, ph) => dialog({msg, input:true, ph}).then(r => r.ok ? r.value : null);
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = tr(msg); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
+
+/* ================== DONNÉES ================== */
+let db;
+function emptyDB() {
+  return {settings:{shopName:'Mon Magasin PC', address:'', phone:'', ice:'', footer:'Merci pour votre confiance !'},
+    products:[], clients:[], suppliers:[], purchases:[], sales:[], payments:[], expenses:[], seq:{sale:0, purchase:0}, savedAt:0};
+}
+function normalize(d) {
+  const e = emptyDB(); d = d && typeof d === 'object' ? d : {};
+  for (const k in e) if (d[k] === undefined) d[k] = e[k];
+  d.settings = Object.assign(e.settings, d.settings); d.seq = Object.assign(e.seq, d.seq);
+  return d;
+}
+const hasData = d => d.products.length || d.clients.length || d.suppliers.length || d.sales.length || d.purchases.length;
+function loadCache() { try { db = normalize(JSON.parse(localStorage.getItem(KEY))); } catch (e) { db = emptyDB(); } }
+
+/* ---------- Stockage dans le téléphone ---------- */
+let sState = 'saved';
+function save() {
+  db.savedAt = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(db)); setS('saved'); } catch (e) { setS('error'); uiAlert('Enregistrement impossible : ' + e.message); }
+}
+function setS(s) { sState = s; updateStatus(); }
+function updateStatus() {
+  const m = {saved:['ok','Enregistré'], error:['err','Non enregistré']}[sState] || ['', ''];
+  $('#saveStatus').innerHTML = `<span class="dot ${m[0]}"></span>${esc(tr(m[1]))}`;
+  $('#brandName').textContent = db.settings.shopName || 'Magasin PC';
+}
+/* ---------- Accès ---------- */
+const prod = id => db.products.find(p => p.id === id);
+const client = id => db.clients.find(c => c.id === id);
+const supplier = id => db.suppliers.find(s => s.id === id);
+const party = (type, id) => type === 'client' ? client(id) : supplier(id);
+const pLabel = p => p ? p.name + ([p.cpu, p.ram, p.storage].filter(Boolean).length ? ' · ' + [p.cpu, p.ram, p.storage].filter(Boolean).join(' / ') : '') : '(produit supprimé)';
+function clientBalance(id) {
+  const c = client(id); if (!c) return 0;
+  return r2(num(c.opening) + sum(db.sales.filter(s => s.clientId === id), s => s.total - s.paid) - sum(db.payments.filter(p => p.type === 'client' && p.partyId === id), p => p.amount));
+}
+function supplierBalance(id) {
+  const s = supplier(id); if (!s) return 0;
+  return r2(num(s.opening) + sum(db.purchases.filter(p => p.supplierId === id), p => p.total - p.paid) - sum(db.payments.filter(p => p.type === 'supplier' && p.partyId === id), p => p.amount));
+}
+const balance = (type, id) => type === 'client' ? clientBalance(id) : supplierBalance(id);
+const saleProfit = s => sum(s.items, i => (i.price - i.cost) * i.qty) - num(s.discount);
+
+/* ---------- Téléchargements ---------- */
+async function offerFile(filename, data) {
+  const type = filename.endsWith('.json') ? 'application/json' : 'text/html';
+  const file = new File([data], filename, {type});
+  try {
+    if (navigator.canShare && navigator.canShare({files:[file]})) { await navigator.share({files:[file], title:filename}); return true; }
+  } catch (e) { if (e && e.name === 'AbortError') return false; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('Fichier prêt'); return true;
+}
+function printHTML(html) { $('#printArea').innerHTML = `<div style="padding:16px">${trHTML(html)}</div>`; setTimeout(() => window.print(), 60); }
+
+/* ================== NAVIGATION / RENDU ================== */
+let current = 'dashboard';
+const filters = {}, rep = {};
+function go(v) { current = v; closeModal(); render(); window.scrollTo(0, 0); }
+function render() {
+  const isMore = MORE.some(m => m[0] === current) || current === 'more';
+  $('#tabs').innerHTML = TABS.map(([k, i, l]) => `<button class="${k === current || (k === 'more' && isMore) ? 'on' : ''}" onclick="${k === 'more' ? 'openMore()' : `go('${k}')`}">${IC[i]}<span>${l}</span></button>`).join('');
+  $('#view').innerHTML = (views[current] || views.dashboard)();
+  translate($('#tabs')); translate($('#view'));
+  $('#langBtn').textContent = LANG === 'ar' ? 'FR' : 'ع';
+  labelTables($('#view'));
+  updateStatus();
+}
+function openMore() {
+  openModal('Plus', `<div class="morelist">${MORE.map(([k, i, l, s]) => `<button onclick="go('${k}')">${IC[i]}<span>${l}<small>${s}</small></span></button>`).join('')}</div>`);
+}
+function labelTables(root) {
+  root.querySelectorAll('.tablewrap table').forEach(t => {
+    const hs = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+    t.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (!td.hasAttribute('data-label')) td.setAttribute('data-label', hs[i] || ''); if (i === 0) td.classList.add('first'); }));
+  });
+}
+function setFilter(k, v) {
+  filters[k] = v; render();
+  const el = document.getElementById('search'); if (el) { el.focus(); el.setSelectionRange(v.length, v.length); }
+}
+function searchBox(k, ph) { return `<input id="search" class="search" type="search" placeholder="${ph || 'Rechercher...'}" value="${esc(filters[k] || '')}" oninput="setFilter('${k}', this.value)">`; }
+const match = (k, text) => { const q = (filters[k] || '').toLowerCase().trim(); return !q || text.toLowerCase().includes(q); };
+function table(head, rows, emptyMsg) {
+  if (!rows.length) return `<div class="tablewrap"><div class="empty">${emptyMsg || 'Aucune donnée'}</div></div>`;
+  return `<div class="tablewrap"><table><thead><tr>${head.map(h => `<th class="${h.startsWith('#') ? 'n' : ''}">${h.replace(/^#/, '')}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+}
+function balBadge(b) {
+  if (Math.abs(b) < 0.01) return '<span class="badge green">Soldé</span>';
+  if (b > 0) return `<span class="neg">${fmt(b)}</span>`;
+  return `<span class="pos">${fmt(-b)} d'avance</span>`;
+}
+
+/* ================== MODAL ================== */
+function openModal(title, html, wide) {
+  $('#mtitle').textContent = tr(title); $('#mbody').innerHTML = html;
+  $('#mbox').className = 'box' + (wide ? ' wide' : '');
+  $('#modal').hidden = false; $('#modal').scrollTop = 0;
+  translate($('#mbody'));
+  labelTables($('#mbody'));
+}
+function closeModal() { $('#modal').hidden = true; draft = null; }
+$('#modal').addEventListener('mousedown', e => { if (e.target.id === 'modal') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('#dlg').hidden) closeDlg(false); else if (!$('#modal').hidden) closeModal(); } });
+
+/* ================== VUES ================== */
+const views = {};
+
+views.dashboard = () => {
+  const t = today(), m = t.slice(0, 7);
+  const sT = db.sales.filter(s => s.date === t), sM = db.sales.filter(s => s.date.startsWith(m));
+  const expM = sum(db.expenses.filter(e => e.date.startsWith(m)), e => e.amount), profitM = sum(sM, saleProfit);
+  const cl = db.clients.map(c => ({c, b:clientBalance(c.id)})).filter(x => x.b > 0.009).sort((a, b) => b.b - a.b);
+  const su = db.suppliers.map(s => ({s, b:supplierBalance(s.id)})).filter(x => x.b > 0.009).sort((a, b) => b.b - a.b);
+  const low = db.products.filter(p => p.qty <= num(p.minQty) && (p.qty > 0 || num(p.minQty) > 0));
+  const last = db.settings.lastExport, old = !last || (Date.now() - new Date(last).getTime()) > 7 * 864e5;
+  const banner = hasData(db) && old ? `<div class="banner">Vos données sont seulement dans ce téléphone. Faites une copie de sauvegarde chaque semaine. <button class="btn sm" onclick="exportJSON()">Faire une copie</button></div>` : '';
+  const welcome = !hasData(db) ? `<div class="card"><h2>Bienvenue 👋</h2><p class="note" style="margin:0">${L('Commencez par <b>Paramètres</b> (nom du magasin), puis ajoutez un <b>achat</b> : les produits entrent en stock, ensuite vous pouvez faire des <b>ventes</b>.', 'بدا بـ <b>الإعدادات</b> (سمية المحل)، من بعد زيد <b>شرا</b>: السلعة كتدخل للمخزون، ومن بعد تقدر دير <b>المبيعات</b>.')}</p></div>` : '';
+  const amtN = n => (Number(n) || 0).toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const chev = '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>';
+  const ini = s => esc((String(s || '?').trim()[0] || '?').toUpperCase());
+  const li = (cls, a, t, s, amt, amtCls, onclick) => `<button class="li" onclick="${onclick}"><span class="av ${cls}">${a}</span><span class="mid"><div class="t">${t}</div><div class="s">${s}</div></span><span class="amt ${amtCls}">${amt}</span>${chev}</button>`;
+  const list = (rows, emptyMsg) => `<div class="list">${rows.length ? rows.join('') : `<div class="empty">${emptyMsg}</div>`}</div>`;
+  const sect = (title, link) => `<div class="sect"><h2>${title}</h2>${link ? `<a onclick="go('${link}')">${L('Tout voir', 'شوف الكل')}</a>` : ''}</div>`;
+  return `${banner}${welcome}
+  <div class="hero">
+    <div class="hl">${L("Ventes aujourd'hui", 'مبيعات اليوم')} · ${sT.length} ${L('vente(s)', 'بيعة')}</div>
+    <div class="hv">${amtN(sum(sT, s => s.total))} <small>${L('DH', 'درهم')}</small></div>
+    <div class="chips">
+      <div class="chip"><span>${L('Ventes ce mois', 'مبيعات الشهر')}</span><b>${fmt(sum(sM, s => s.total))}</b></div>
+      <div class="chip"><span>${L('Bénéfice net du mois', 'الربح الصافي ديال الشهر')}</span><b>${fmt(profitM - expM)}</b></div>
+    </div>
+  </div>
+  <div class="actions4">
+    <button onclick="newSale()"><span class="ic">${IC.sale}</span>${L('Vente', 'بيع')}</button>
+    <button onclick="newPurchase()"><span class="ic">${IC.box}</span>${L('Achat', 'شرا')}</button>
+    <button onclick="newPayment('client')"><span class="ic">${IC.cash}</span>${L('Encaisser', 'استلم')}</button>
+    <button onclick="newPayment('supplier')"><span class="ic">${IC.truck}</span>${L('Payer', 'خلص')}</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="l">Crédit clients</div><div class="v neg">${fmt(sum(cl, x => x.b))}</div><div class="s">${cl.length} client(s) doivent</div></div>
+    <div class="stat"><div class="l">Dettes fournisseurs</div><div class="v warn">${fmt(sum(su, x => x.b))}</div><div class="s">${su.length} fournisseur(s)</div></div>
+    <div class="stat"><div class="l">Valeur du stock</div><div class="v">${fmt(sum(db.products, p => p.qty * p.buy))}</div><div class="s">${sum(db.products, p => p.qty)} pièce(s)</div></div>
+    <div class="stat"><div class="l">${L('Dépenses du mois', 'مصاريف الشهر')}</div><div class="v">${fmt(expM)}</div><div class="s">${L('Bénéfice brut', 'الربح الخام')} ${fmt(profitM)}</div></div>
+  </div>
+  ${sect('Clients qui doivent', 'clients')}
+  ${list(cl.slice(0, 6).map(x => li('red', ini(x.c.name), esc(x.c.name), esc(x.c.phone) || '&nbsp;', fmt(x.b), 'neg', `statement('client','${x.c.id}')`)), 'Aucun crédit client')}
+  ${sect('Fournisseurs à payer', 'suppliers')}
+  ${list(su.slice(0, 6).map(x => li('orange', ini(x.s.name), esc(x.s.name), esc(x.s.phone) || '&nbsp;', fmt(x.b), 'warn', `statement('supplier','${x.s.id}')`)), 'Aucune dette fournisseur')}
+  ${sect('Dernières ventes', 'sales')}
+  ${list([...db.sales].reverse().slice(0, 6).map(s => { const r = s.total - s.paid; return li(r > 0.009 ? 'red' : 'green', IC.sale.replace('<svg', '<svg width="20" height="20"'), esc(client(s.clientId)?.name || 'Client passager'), s.num + ' · ' + fdate(s.date), fmt(s.total), '', `showSale('${s.id}')`); }), 'Aucune vente')}
+  ${low.length ? sect('Stock faible', 'stock') + list(low.map(p => li(p.qty <= 0 ? 'red' : 'orange', p.qty, esc(p.name), esc([p.cpu, p.ram, p.storage].filter(Boolean).join(' / ')) || '&nbsp;', L('Seuil', 'الحد') + ' ' + num(p.minQty), 'muted', `editProduct('${p.id}')`)), '') : ''}`;
+};
+
+/* ---------- STOCK ---------- */
+views.stock = () => {
+  const cat = filters.stockCat || '';
+  const list = db.products.filter(p => (!cat || p.category === cat) && match('stock', [p.name, p.cpu, p.ram, p.storage, p.category, p.condition, p.notes].join(' '))).sort((a, b) => a.name.localeCompare(b.name));
+  return `<h1>Stock</h1>
+  <div class="toolbar"><button class="btn" onclick="editProduct()">+ Produit</button>${searchBox('stock', 'Rechercher un produit...')}
+  <select id="stockCat" style="max-width:200px" onchange="filters.stockCat=this.value;render()"><option value="">Toutes catégories</option>${opts(CATS, cat)}</select></div>
+  <p class="note">Valeur (prix d'achat) : <b>${fmt(sum(list, p => p.qty * p.buy))}</b> · ${sum(list, p => p.qty)} pièce(s)</p>
+  ${table(['Produit', 'État', '#Qté', '#Achat', '#Vente', '#Marge', ''], list.map(p => `<tr>
+    <td><b>${esc(p.name)}</b><div class="muted" style="font-size:13px">${esc([p.category, p.cpu, p.ram, p.storage, p.screen, p.gpu].filter(Boolean).join(' / '))}</div></td>
+    <td><span class="badge ${p.condition === 'Neuf' ? 'green' : 'orange'}">${esc(p.condition)}</span></td>
+    <td class="n ${p.qty <= 0 ? 'neg' : p.qty <= num(p.minQty) ? 'warn' : ''}">${p.qty}</td>
+    <td class="n">${fmt(p.buy)}</td><td class="n">${fmt(p.sell)}</td><td class="n pos">${fmt(p.sell - p.buy)}</td>
+    <td class="actions"><button class="btn sm sec" onclick="productHistory('${p.id}')">Historique</button> <button class="btn sm sec" onclick="editProduct('${p.id}')">Modifier</button> <button class="btn sm red" onclick="deleteProduct('${p.id}')" aria-label="Supprimer">×</button></td></tr>`), 'Aucun produit. Ajoutez-en un ou enregistrez un achat.')}`;
+};
+function editProduct(id) {
+  const p = id ? prod(id) : {name:'', category:'PC Portable', condition:'Occasion', qty:0, buy:0, sell:0, minQty:1};
+  openModal(id ? 'Modifier le produit' : 'Nouveau produit', `<div class="form">
+    <div class="full"><label for="f_name">Désignation (marque + modèle)</label><input id="f_name" value="${esc(p.name)}" placeholder="HP EliteBook 840 G5"></div>
+    <div><label for="f_category">Catégorie</label><select id="f_category">${opts(CATS, p.category)}</select></div>
+    <div><label for="f_condition">État</label><select id="f_condition">${opts(ETATS, p.condition)}</select></div>
+    <div><label for="f_cpu">Processeur</label><input id="f_cpu" value="${esc(p.cpu)}" placeholder="i5 8e gén"></div>
+    <div><label for="f_ram">RAM</label><input id="f_ram" value="${esc(p.ram)}" placeholder="8 Go"></div>
+    <div><label for="f_storage">Stockage</label><input id="f_storage" value="${esc(p.storage)}" placeholder="256 Go SSD"></div>
+    <div><label for="f_screen">Écran</label><input id="f_screen" value="${esc(p.screen)}" placeholder='14" FHD'></div>
+    <div><label for="f_gpu">Carte graphique</label><input id="f_gpu" value="${esc(p.gpu)}"></div>
+    <div><label for="f_minQty">Seuil stock faible</label><input id="f_minQty" type="number" inputmode="numeric" value="${num(p.minQty)}"></div>
+    <div><label for="f_buy">Prix d'achat (DH)</label><input id="f_buy" ${NUM} value="${num(p.buy)}"></div>
+    <div><label for="f_sell">Prix de vente (DH)</label><input id="f_sell" ${NUM} value="${num(p.sell)}"></div>
+    <div><label for="f_qty">Quantité en stock</label><input id="f_qty" type="number" inputmode="numeric" value="${num(p.qty)}"></div>
+    <div class="full"><label for="f_notes">Notes</label><textarea id="f_notes" rows="2">${esc(p.notes)}</textarea></div>
+  </div><div class="mfoot"><button class="btn sec" onclick="closeModal()">Annuler</button><button class="btn" onclick="saveProduct('${id || ''}')">Enregistrer</button></div>`);
+}
+function saveProduct(id) {
+  const name = val('f_name'); if (!name) return uiAlert('La désignation est obligatoire.');
+  const data = {name, category:val('f_category'), condition:val('f_condition'), cpu:val('f_cpu'), ram:val('f_ram'), storage:val('f_storage'),
+    screen:val('f_screen'), gpu:val('f_gpu'), minQty:num(val('f_minQty')), buy:num(val('f_buy')), sell:num(val('f_sell')), qty:num(val('f_qty')), notes:val('f_notes')};
+  if (id) Object.assign(prod(id), data); else db.products.push({id:uid(), ...data});
+  save(); closeModal(); render(); toast('Produit enregistré');
+}
+async function deleteProduct(id) {
+  const used = db.sales.some(s => s.items.some(i => i.productId === id)) || db.purchases.some(p => p.items.some(i => i.productId === id));
+  if (used) return uiAlert('Ce produit apparaît dans des ventes ou des achats, il ne peut pas être supprimé. Mettez sa quantité à 0.');
+  if (!await uiConfirm('Supprimer ce produit ?', 'Supprimer', true)) return;
+  db.products = db.products.filter(p => p.id !== id); save(); render();
+}
+function productHistory(id) {
+  const p = prod(id), rows = [];
+  db.purchases.forEach(a => a.items.filter(i => i.productId === id).forEach(i => rows.push({d:a.date, t:`<span class="badge">Achat ${a.num}</span>`, w:esc(supplier(a.supplierId)?.name || ''), q:'+' + i.qty, pr:i.price})));
+  db.sales.forEach(s => s.items.filter(i => i.productId === id).forEach(i => rows.push({d:s.date, t:`<span class="badge green">Vente ${s.num}</span>`, w:esc(client(s.clientId)?.name || 'Client passager') + (i.serial ? ` · S/N ${esc(i.serial)}` : ''), q:'−' + i.qty, pr:i.price})));
+  rows.sort((a, b) => a.d.localeCompare(b.d));
+  openModal(p.name, table(['Date', 'Opération', 'Tiers', '#Qté', '#Prix'], rows.map(r => `<tr><td>${fdate(r.d)}</td><td>${r.t}</td><td>${r.w}</td><td class="n">${r.q}</td><td class="n">${fmt(r.pr)}</td></tr>`), 'Aucun mouvement'), true);
+}
+
+/* ---------- CLIENTS / FOURNISSEURS ---------- */
+function partyView(type) {
+  const isC = type === 'client', list = isC ? db.clients : db.suppliers, k = isC ? 'clients' : 'suppliers', only = filters[k + 'Debt'];
+  const rows = list.map(x => ({x, b:balance(type, x.id)})).filter(r => match(k, [r.x.name, r.x.phone, r.x.cin, r.x.address].join(' ')) && (!only || r.b > 0.009)).sort((a, b) => a.x.name.localeCompare(b.x.name));
+  return `<h1>${isC ? 'Clients' : 'Fournisseurs'}</h1>
+  <div class="toolbar"><button class="btn" onclick="editParty('${type}')">+ ${isC ? 'Client' : 'Fournisseur'}</button>${searchBox(k)}
+  <label style="display:flex;gap:6px;align-items:center;white-space:nowrap;font-size:14px"><input id="debtOnly" type="checkbox" style="width:auto" ${only ? 'checked' : ''} onchange="filters['${k}Debt']=this.checked;render()"> ${isC ? 'Ceux qui doivent' : 'Ceux à payer'}</label></div>
+  <p class="note">Total ${isC ? 'à encaisser' : 'à payer'} : <b class="neg">${fmt(sum(rows.filter(r => r.b > 0), r => r.b))}</b></p>
+  ${table(['Nom', 'Téléphone', '#Total ' + (isC ? 'acheté' : 'acheté chez lui'), '#Reste', ''], rows.map(({x, b}) => {
+    const tot = isC ? sum(db.sales.filter(s => s.clientId === x.id), s => s.total) : sum(db.purchases.filter(p => p.supplierId === x.id), p => p.total);
+    return `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.phone)}</td><td class="n">${fmt(tot)}</td><td class="n">${balBadge(b)}</td>
+    <td class="actions"><button class="btn sm sec" onclick="statement('${type}','${x.id}')">Relevé</button> <button class="btn sm ${isC ? 'green' : ''}" onclick="newPayment('${type}','${x.id}')">${isC ? 'Encaisser' : 'Payer'}</button> <button class="btn sm sec" onclick="editParty('${type}','${x.id}')">Modifier</button> <button class="btn sm red" onclick="deleteParty('${type}','${x.id}')" aria-label="Supprimer">×</button></td></tr>`;
+  }), isC ? 'Aucun client' : 'Aucun fournisseur')}`;
+}
+views.clients = () => partyView('client');
+views.suppliers = () => partyView('supplier');
+function editParty(type, id) {
+  const isC = type === 'client', x = id ? party(type, id) : {};
+  openModal((id ? 'Modifier ' : 'Nouveau ') + (isC ? 'client' : 'fournisseur'), `<div class="form">
+    <div class="full"><label for="f_name">Nom</label><input id="f_name" value="${esc(x.name)}"></div>
+    <div><label for="f_phone">Téléphone</label><input id="f_phone" type="tel" value="${esc(x.phone)}"></div>
+    <div><label for="f_cin">${isC ? 'CIN' : 'ICE / RC'}</label><input id="f_cin" value="${esc(x.cin)}"></div>
+    <div class="full"><label for="f_address">Adresse</label><input id="f_address" value="${esc(x.address)}"></div>
+    <div class="full"><label for="f_opening">${isC ? 'Crédit d\'avant (ce qu\'il vous devait déjà)' : 'Dette d\'avant (ce que vous lui deviez déjà)'} – DH</label><input id="f_opening" ${NUM} value="${num(x.opening)}"></div>
+    <div class="full"><label for="f_notes">Notes</label><textarea id="f_notes" rows="2">${esc(x.notes)}</textarea></div>
+  </div><div class="mfoot"><button class="btn sec" onclick="closeModal()">Annuler</button><button class="btn" onclick="saveParty('${type}','${id || ''}')">Enregistrer</button></div>`);
+}
+function saveParty(type, id) {
+  const name = val('f_name'); if (!name) return uiAlert('Le nom est obligatoire.');
+  const data = {name, phone:val('f_phone'), cin:val('f_cin'), address:val('f_address'), opening:num(val('f_opening')), notes:val('f_notes')};
+  if (id) Object.assign(party(type, id), data); else (type === 'client' ? db.clients : db.suppliers).push({id:uid(), ...data});
+  save(); closeModal(); render(); toast('Enregistré');
+}
+async function deleteParty(type, id) {
+  const used = type === 'client' ? db.sales.some(s => s.clientId === id) : db.purchases.some(p => p.supplierId === id);
+  if (used || db.payments.some(p => p.partyId === id)) return uiAlert('Impossible de supprimer : des opérations sont liées à ce nom.');
+  if (!await uiConfirm('Supprimer ?', 'Supprimer', true)) return;
+  if (type === 'client') db.clients = db.clients.filter(c => c.id !== id); else db.suppliers = db.suppliers.filter(s => s.id !== id);
+  save(); render();
+}
+function statementRows(type, id) {
+  const x = party(type, id), isC = type === 'client', rows = [];
+  if (num(x.opening)) rows.push({d:'', l:isC ? 'Crédit d\'avant' : 'Dette d\'avant', deb:num(x.opening), cred:0});
+  (isC ? db.sales.filter(s => s.clientId === id) : db.purchases.filter(p => p.supplierId === id)).forEach(o => {
+    rows.push({d:o.date, l:(isC ? 'Vente ' : 'Achat ') + o.num + ' – ' + o.items.map(i => i.qty + '× ' + i.name).join(', '), deb:o.total, cred:0});
+    if (o.paid > 0) rows.push({d:o.date, l:'Payé à la ' + (isC ? 'vente ' : 'réception ') + o.num, deb:0, cred:o.paid});
+  });
+  db.payments.filter(p => p.type === type && p.partyId === id).forEach(p => rows.push({d:p.date, l:'Paiement (' + p.method + ')' + (p.note ? ' – ' + p.note : ''), deb:0, cred:p.amount}));
+  rows.sort((a, b) => a.d.localeCompare(b.d));
+  let run = 0; rows.forEach(r => { run = r2(run + r.deb - r.cred); r.bal = run; });
+  return rows;
+}
+function statement(type, id) {
+  const x = party(type, id), isC = type === 'client', b = balance(type, id);
+  openModal('Relevé – ' + x.name, `<p style="margin:0 0 12px">${x.phone ? esc(x.phone) + ' · ' : ''}<span class="muted">${isC ? 'Reste à encaisser' : 'Reste à payer'} :</span> ${balBadge(b)}</p>
+    <div class="toolbar"><button class="btn ${isC ? 'green' : ''}" onclick="newPayment('${type}','${id}')">${isC ? 'Encaisser' : 'Payer'}</button><button class="btn sec" onclick="downloadStatement('${type}','${id}')">Télécharger le relevé</button></div>
+    ${table(['Date', 'Opération', '#' + (isC ? 'Doit' : 'Acheté'), '#Payé', '#Solde'], statementRows(type, id).map(r => `<tr><td>${fdate(r.d) || '—'}</td><td>${esc(r.l)}</td><td class="n">${r.deb ? fmt(r.deb) : ''}</td><td class="n pos">${r.cred ? fmt(r.cred) : ''}</td><td class="n ${r.bal > 0 ? 'neg' : ''}">${fmt(r.bal)}</td></tr>`), 'Aucune opération')}`, true);
+}
+
+/* ---------- VENTES & ACHATS (formulaires) ---------- */
+let draft = null;
+function newSale() {
+  if (!db.products.some(p => p.qty > 0)) return uiAlert('Aucun produit en stock. Enregistrez d\'abord un achat ou ajoutez un produit.');
+  draft = {kind:'sale', date:today(), clientId:'', items:[{productId:'', qty:1, price:0, serial:''}], discount:0, paid:0, method:'Espèces', notes:''};
+  openModal('Nouvelle vente', orderForm(), true); updateTotals();
+}
+function newPurchase() {
+  draft = {kind:'purchase', date:today(), supplierId:'', items:[newPItem()], paid:0, method:'Espèces', notes:''};
+  openModal('Nouvel achat', orderForm(), true); updateTotals();
+}
+const newPItem = () => ({productId:'', qty:1, price:0, newName:'', newSell:0, newCat:'PC Portable', newCond:'Occasion'});
+function partySelectHTML() {
+  if (draft.kind === 'sale') return `<label for="d_party" class="l">Client</label><div class="row"><select id="d_party" onchange="draft.clientId=this.value;updateTotals()"><option value="">Client passager (sans crédit)</option>${[...db.clients].sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.id}" ${c.id === draft.clientId ? 'selected' : ''}>${esc(c.name)}${c.phone ? ' – ' + esc(c.phone) : ''}</option>`).join('')}</select><button class="btn sec" aria-label="Nouveau client" onclick="quickParty()">+</button></div>`;
+  return `<label for="d_party" class="l">Fournisseur</label><div class="row"><select id="d_party" onchange="draft.supplierId=this.value"><option value="">Choisir...</option>${[...db.suppliers].sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${s.id}" ${s.id === draft.supplierId ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select><button class="btn sec" aria-label="Nouveau fournisseur" onclick="quickParty()">+</button></div>`;
+}
+async function quickParty() {
+  const isS = draft.kind === 'sale';
+  const name = await uiPrompt(isS ? 'Nom du nouveau client' : 'Nom du nouveau fournisseur', 'Nom'); if (!name || !draft) return;
+  const phone = (await uiPrompt('Téléphone (laisser vide si inconnu)', '06...')) || '';
+  if (!draft) return;
+  const x = {id:uid(), name, phone, opening:0};
+  if (isS) { db.clients.push(x); draft.clientId = x.id; } else { db.suppliers.push(x); draft.supplierId = x.id; }
+  save(); $('#d_partyWrap').innerHTML = partySelectHTML(); updateTotals();
+}
+function orderForm() {
+  const isS = draft.kind === 'sale';
+  return `<div class="form">
+    <div id="d_partyWrap">${partySelectHTML()}</div>
+    <div><label for="d_date">Date</label><input id="d_date" type="date" value="${draft.date}" onchange="draft.date=this.value"></div></div>
+    <h2 style="margin-top:16px">Articles</h2>
+    <div class="tablewrap"><table class="items"><thead><tr><th>Produit</th><th>Qté</th><th>Prix unitaire</th>${isS ? '<th>N° série</th>' : ''}<th class="n">Total</th><th></th></tr></thead><tbody id="items">${itemsHTML()}</tbody></table></div>
+    <button class="btn sec sm" style="margin-top:8px" onclick="addItem()">+ Ajouter un article</button>
+    <div class="totals">
+      ${isS ? `<div><label for="d_disc" class="l">Remise (DH)</label><input id="d_disc" ${NUM} value="${draft.discount}" oninput="draft.discount=num(this.value);updateTotals()"></div>` : ''}
+      <div><div class="l muted" style="font-size:12px;font-weight:600">TOTAL</div><div class="big" id="d_total"></div></div>
+      <div><label for="d_paid" class="l">Payé maintenant (DH)</label><div class="row"><input id="d_paid" ${NUM} value="${draft.paid}" oninput="draft.paid=num(this.value);updateTotals()"><button class="btn sec" onclick="payAll()">Tout</button></div></div>
+      <div><label for="d_method" class="l">Mode</label><select id="d_method" onchange="draft.method=this.value">${opts(METHODS, draft.method)}</select></div>
+      <div><div class="l muted" style="font-size:12px;font-weight:600">RESTE (${isS ? 'crédit client' : 'dette fournisseur'})</div><div class="big" id="d_rest"></div></div>
+    </div>
+    <div style="margin-top:12px"><label for="d_notes" class="l">Notes</label><input id="d_notes" value="${esc(draft.notes)}" oninput="draft.notes=this.value" placeholder="Garantie, remarque..."></div>
+    <div id="d_info" class="note" style="margin-top:10px"></div>
+    <div class="mfoot"><button class="btn sec" onclick="closeModal()">Annuler</button><button class="btn ${isS ? 'green' : ''}" onclick="${isS ? 'saveSale()' : 'savePurchase()'}">Enregistrer ${isS ? 'la vente' : 'l\'achat'}</button></div>`;
+}
+function itemsHTML() {
+  const isS = draft.kind === 'sale', prods = [...db.products].sort((a, b) => a.name.localeCompare(b.name));
+  return draft.items.map((it, i) => {
+    const sel = `<select id="it_p${i}" onchange="itemSet(${i},'productId',this.value)"><option value="">Choisir un produit...</option>${!isS ? `<option value="__new" ${it.productId === '__new' ? 'selected' : ''}>+ Nouveau produit</option>` : ''}${prods.map(p => `<option value="${p.id}" ${p.id === it.productId ? 'selected' : ''} ${isS && p.qty <= 0 && p.id !== it.productId ? 'disabled' : ''}>${esc(pLabel(p))} (stock ${p.qty})</option>`).join('')}</select>`;
+    const extra = it.productId === '__new' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px"><input id="it_n${i}" style="grid-column:1/-1" placeholder="Désignation : Dell Latitude 5490 i5 8Go" value="${esc(it.newName)}" oninput="itemSet(${i},'newName',this.value)"><select id="it_c${i}" onchange="itemSet(${i},'newCat',this.value)">${opts(CATS, it.newCat)}</select><select id="it_e${i}" onchange="itemSet(${i},'newCond',this.value)">${opts(ETATS, it.newCond)}</select><input id="it_s${i}" ${NUM} style="grid-column:1/-1" placeholder="Prix de vente prévu (DH)" value="${it.newSell || ''}" oninput="itemSet(${i},'newSell',this.value)"></div>` : '';
+    return `<tr><td>${sel}${extra}</td><td style="min-width:70px"><input id="it_q${i}" type="number" inputmode="numeric" min="1" value="${it.qty}" oninput="itemSet(${i},'qty',this.value)"></td>
+      <td style="min-width:110px"><input id="it_r${i}" ${NUM} value="${it.price}" oninput="itemSet(${i},'price',this.value)"></td>
+      ${isS ? `<td style="min-width:130px"><input id="it_sn${i}" value="${esc(it.serial)}" placeholder="optionnel" oninput="itemSet(${i},'serial',this.value)"></td>` : ''}
+      <td class="n" id="lt${i}">${fmt(it.qty * it.price)}</td><td class="actions"><button class="btn sm red" onclick="removeItem(${i})" aria-label="Retirer">×</button></td></tr>`;
+  }).join('');
+}
+function refreshItems() { $('#items').innerHTML = itemsHTML(); translate($('#items')); labelTables($('#mbody')); }
+function itemSet(i, f, v) {
+  const it = draft.items[i];
+  if (f === 'productId') { it.productId = v; const p = prod(v); it.price = p ? (draft.kind === 'sale' ? p.sell : p.buy) : 0; refreshItems(); }
+  else it[f] = ['qty', 'price', 'newSell'].includes(f) ? num(v) : v;
+  const lt = document.getElementById('lt' + i); if (lt) lt.textContent = fmt(it.qty * it.price);
+  updateTotals();
+}
+function addItem() { draft.items.push(draft.kind === 'sale' ? {productId:'', qty:1, price:0, serial:''} : newPItem()); refreshItems(); }
+function removeItem(i) { draft.items.splice(i, 1); if (!draft.items.length) return addItem(); refreshItems(); updateTotals(); }
+const draftTotal = () => r2(sum(draft.items, i => i.qty * i.price) - (draft.kind === 'sale' ? num(draft.discount) : 0));
+function payAll() { draft.paid = draftTotal(); $('#d_paid').value = draft.paid; updateTotals(); }
+function updateTotals() {
+  if (!draft || !$('#d_total')) return;
+  const t = draftTotal(), rest = r2(t - draft.paid);
+  $('#d_total').textContent = fmt(t);
+  $('#d_rest').innerHTML = `<span class="${rest > 0.009 ? 'neg' : 'pos'}">${fmt(rest)}</span>`;
+  let info = '';
+  if (draft.kind === 'sale') {
+    const profit = sum(draft.items, i => { const p = prod(i.productId); return p ? (i.price - p.buy) * i.qty : 0; }) - num(draft.discount);
+    info = `Bénéfice estimé : <b class="${profit >= 0 ? 'pos' : 'neg'}">${fmt(profit)}</b>`;
+    if (draft.clientId) info += ` · Crédit actuel du client : <b>${fmt(clientBalance(draft.clientId))}</b>`;
+  }
+  $('#d_info').innerHTML = info; translate($('#d_info'));
+}
+function saveSale() {
+  const items = draft.items.filter(i => i.productId);
+  if (!items.length) return uiAlert('Ajoutez au moins un produit.');
+  const need = {};
+  for (const i of items) { if (i.qty <= 0) return uiAlert('Quantité invalide.'); need[i.productId] = (need[i.productId] || 0) + i.qty; }
+  for (const id in need) { const p = prod(id); if (need[id] > p.qty) return uiAlert(`Stock insuffisant pour « ${p.name} » (disponible : ${p.qty}).`); }
+  const total = draftTotal(), paid = r2(draft.paid);
+  if (total < 0) return uiAlert('Le total ne peut pas être négatif. Vérifiez la remise.');
+  if (paid > total + 0.009) return uiAlert('Le montant payé dépasse le total.');
+  if (total - paid > 0.009 && !draft.clientId) return uiAlert('Il reste un montant non payé. Choisissez un client (ou ajoutez-le avec +) pour enregistrer le crédit.');
+  db.seq.sale++;
+  const s = {id:uid(), num:'V-' + String(db.seq.sale).padStart(4, '0'), date:validDate(draft.date), clientId:draft.clientId || null,
+    items:items.map(i => { const p = prod(i.productId); return {productId:p.id, name:pLabel(p), qty:i.qty, price:i.price, cost:p.buy, serial:i.serial}; }),
+    discount:num(draft.discount), total, paid, method:draft.method, notes:draft.notes};
+  items.forEach(i => prod(i.productId).qty -= i.qty);
+  db.sales.push(s); save(); closeModal(); render(); toast('Vente ' + s.num + ' enregistrée');
+  showSale(s.id);
+}
+function savePurchase() {
+  if (!draft.supplierId) return uiAlert('Choisissez un fournisseur (ou ajoutez-le avec +).');
+  const items = draft.items.filter(i => i.productId);
+  if (!items.length) return uiAlert('Ajoutez au moins un produit.');
+  for (const i of items) { if (i.qty <= 0) return uiAlert('Quantité invalide.'); if (i.productId === '__new' && !i.newName.trim()) return uiAlert('Donnez une désignation au nouveau produit.'); }
+  const total = draftTotal(), paid = r2(draft.paid);
+  if (paid > total + 0.009) return uiAlert('Le montant payé dépasse le total.');
+  const recItems = items.map(i => {
+    let p;
+    if (i.productId === '__new') { p = {id:uid(), name:i.newName.trim(), category:i.newCat, condition:i.newCond, qty:0, buy:i.price, sell:i.newSell || i.price, minQty:1}; db.products.push(p); }
+    else p = prod(i.productId);
+    const oldQty = Math.max(0, p.qty);
+    p.buy = oldQty + i.qty > 0 ? r2((oldQty * p.buy + i.qty * i.price) / (oldQty + i.qty)) : i.price; // coût moyen
+    p.qty += i.qty;
+    return {productId:p.id, name:pLabel(p), qty:i.qty, price:i.price};
+  });
+  db.seq.purchase++;
+  db.purchases.push({id:uid(), num:'A-' + String(db.seq.purchase).padStart(4, '0'), date:validDate(draft.date), supplierId:draft.supplierId, items:recItems, total, paid, method:draft.method, notes:draft.notes});
+  save(); closeModal(); render(); toast('Achat enregistré, stock mis à jour');
+}
+
+/* ---------- VENTES (liste) ---------- */
+views.sales = () => {
+  const list = [...db.sales].reverse().filter(s => match('sales', [s.num, client(s.clientId)?.name, s.items.map(i => i.name + ' ' + (i.serial || '')).join(' '), fdate(s.date)].join(' ')));
+  return `<h1>Ventes</h1><div class="toolbar"><button class="btn green" onclick="newSale()">+ Vente</button>${searchBox('sales', 'N°, client, produit, n° série...')}</div>
+  <p class="note">${list.length} vente(s) · <b>${fmt(sum(list, s => s.total))}</b></p>
+  ${table(['N°', 'Date', 'Client', 'Articles', '#Total', '#Reste', '#Bénéfice', ''], list.map(s => `<tr>
+    <td><b>${s.num}</b></td><td>${fdate(s.date)}</td><td>${esc(client(s.clientId)?.name || 'Client passager')}</td>
+    <td>${esc(s.items.map(i => i.qty + '× ' + i.name).join(', '))}</td><td class="n">${fmt(s.total)}</td>
+    <td class="n ${s.total - s.paid > 0.009 ? 'neg' : ''}">${fmt(s.total - s.paid)}</td><td class="n pos">${fmt(saleProfit(s))}</td>
+    <td class="actions"><button class="btn sm sec" onclick="showSale('${s.id}')">Facture</button> <button class="btn sm red" onclick="deleteSale('${s.id}')" aria-label="Supprimer">×</button></td></tr>`), 'Aucune vente')}`;
+};
+function invoiceHTML(s) {
+  const c = client(s.clientId), st = db.settings, rest = s.total - s.paid;
+  const td = 'style="padding:6px;border-bottom:1px solid #ddd"', tdn = 'style="padding:6px;border-bottom:1px solid #ddd;text-align:end;white-space:nowrap"';
+  return `<div style="font-family:Arial,sans-serif;color:#111;font-size:13px">
+  <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:14px">
+    <div><div style="font-size:20px;font-weight:700">${esc(st.shopName)}</div><div>${esc(st.address)}</div><div>${st.phone ? 'Tél : ' + esc(st.phone) : ''}</div><div>${esc(st.ice)}</div></div>
+    <div style="text-align:end"><div style="font-size:20px;font-weight:700">FACTURE</div><div>N° <b>${s.num}</b></div><div>Date : ${fdate(s.date)}</div></div></div>
+  <p><b>Client :</b> ${esc(c?.name || 'Client passager')}${c?.phone ? ' – ' + esc(c.phone) : ''}${c?.cin ? ' – CIN ' + esc(c.cin) : ''}</p>
+  <table style="width:100%;border-collapse:collapse"><thead><tr style="background:#eee"><th ${td}>Désignation</th><th ${td}>N° série</th><th ${tdn}>Qté</th><th ${tdn}>P.U.</th><th ${tdn}>Total</th></tr></thead><tbody>
+  ${s.items.map(i => `<tr><td ${td}>${esc(i.name)}</td><td ${td}>${esc(i.serial)}</td><td ${tdn}>${i.qty}</td><td ${tdn}>${fmt(i.price)}</td><td ${tdn}>${fmt(i.qty * i.price)}</td></tr>`).join('')}</tbody></table>
+  <table style="margin-inline-start:auto;margin-top:12px;min-width:240px">${s.discount ? `<tr><td>Remise</td><td style="text-align:end">−${fmt(s.discount)}</td></tr>` : ''}
+  <tr><td><b>TOTAL</b></td><td style="text-align:end"><b>${fmt(s.total)}</b></td></tr><tr><td>Payé (${esc(s.method)})</td><td style="text-align:end">${fmt(s.paid)}</td></tr>
+  ${rest > 0.009 ? `<tr><td><b>Reste à payer</b></td><td style="text-align:end"><b>${fmt(rest)}</b></td></tr>` : ''}</table>
+  ${s.notes ? `<p>${esc(s.notes)}</p>` : ''}<p style="text-align:center;margin-top:30px">${esc(st.footer)}</p>
+  <div style="display:flex;justify-content:space-between;margin-top:30px"><span>Signature client</span><span>Cachet du magasin</span></div></div>`;
+}
+const docWrap = (title, body) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head><body style="margin:0;padding:24px;background:#fff">${body}</body></html>`;
+function showSale(id) {
+  const s = db.sales.find(x => x.id === id);
+  openModal('Vente ' + s.num, `<p class="note">Bénéfice de cette vente : <b class="pos">${fmt(saleProfit(s))}</b></p>
+  <div class="inv">${invoiceHTML(s)}</div>
+  <div class="mfoot"><button class="btn sec" onclick="closeModal()">Fermer</button><button class="btn sec" onclick="printHTML(invoiceHTML(db.sales.find(x=>x.id==='${s.id}')))">Imprimer</button><button class="btn" onclick="downloadInvoice('${s.id}')">Partager la facture</button></div>`, true);
+}
+function downloadInvoice(id) { const s = db.sales.find(x => x.id === id); offerFile(`Facture-${s.num}.html`, docWrap('Facture ' + s.num, trHTML(invoiceHTML(s)))); }
+function downloadStatement(type, id) {
+  const x = party(type, id), rows = statementRows(type, id), b = balance(type, id), st = db.settings;
+  const td = 'style="padding:6px;border-bottom:1px solid #ddd"', tdn = 'style="padding:6px;border-bottom:1px solid #ddd;text-align:end;white-space:nowrap"';
+  const body = `<div style="font-family:Arial,sans-serif;color:#111;font-size:13px"><div style="font-size:20px;font-weight:700">${esc(st.shopName)}</div><div>${esc(st.address)} ${st.phone ? '· Tél ' + esc(st.phone) : ''}</div>
+  <h2>Relevé de compte – ${esc(x.name)}</h2><p>Date : ${fdate(today())}</p>
+  <table style="width:100%;border-collapse:collapse"><thead><tr style="background:#eee"><th ${td}>Date</th><th ${td}>Opération</th><th ${tdn}>Débit</th><th ${tdn}>Payé</th><th ${tdn}>Solde</th></tr></thead><tbody>
+  ${rows.map(r => `<tr><td ${td}>${fdate(r.d)}</td><td ${td}>${esc(r.l)}</td><td ${tdn}>${r.deb ? fmt(r.deb) : ''}</td><td ${tdn}>${r.cred ? fmt(r.cred) : ''}</td><td ${tdn}>${fmt(r.bal)}</td></tr>`).join('')}</tbody></table>
+  <p style="text-align:end;font-size:16px"><b>Reste à payer : ${fmt(b)}</b></p></div>`;
+  offerFile(`Releve-${x.name.replace(/[^\w\- ]/g, '').trim() || 'compte'}.html`, docWrap('Relevé ' + x.name, trHTML(body)));
+}
+async function deleteSale(id) {
+  const s = db.sales.find(x => x.id === id);
+  if (!await uiConfirm(`Supprimer la vente ${s.num} ?\nLes produits seront remis en stock.`, 'Supprimer', true)) return;
+  s.items.forEach(i => { const p = prod(i.productId); if (p) p.qty += i.qty; });
+  db.sales = db.sales.filter(x => x.id !== id); save(); render();
+}
+
+/* ---------- ACHATS (liste) ---------- */
+views.purchases = () => {
+  const list = [...db.purchases].reverse().filter(a => match('purchases', [a.num, supplier(a.supplierId)?.name, a.items.map(i => i.name).join(' '), fdate(a.date)].join(' ')));
+  return `<h1>Achats</h1><div class="toolbar"><button class="btn" onclick="newPurchase()">+ Achat</button>${searchBox('purchases', 'N°, fournisseur, produit...')}</div>
+  <p class="note">${list.length} achat(s) · <b>${fmt(sum(list, a => a.total))}</b></p>
+  ${table(['N°', 'Date', 'Fournisseur', 'Articles', '#Total', '#Payé', '#Reste', ''], list.map(a => `<tr>
+    <td><b>${a.num}</b></td><td>${fdate(a.date)}</td><td>${esc(supplier(a.supplierId)?.name || '')}</td>
+    <td>${esc(a.items.map(i => i.qty + '× ' + i.name + ' @ ' + fmt(i.price)).join(', '))}</td><td class="n">${fmt(a.total)}</td><td class="n">${fmt(a.paid)}</td>
+    <td class="n ${a.total - a.paid > 0.009 ? 'warn' : ''}">${fmt(a.total - a.paid)}</td>
+    <td class="actions"><button class="btn sm red" onclick="deletePurchase('${a.id}')" aria-label="Supprimer">×</button></td></tr>`), 'Aucun achat')}`;
+};
+async function deletePurchase(id) {
+  const a = db.purchases.find(x => x.id === id);
+  for (const i of a.items) { const p = prod(i.productId); if (p && p.qty < i.qty) return uiAlert(`Impossible : une partie de « ${p.name} » a déjà été vendue. Supprimez d'abord les ventes concernées.`); }
+  if (!await uiConfirm(`Supprimer l'achat ${a.num} ?\nLes quantités seront retirées du stock.`, 'Supprimer', true)) return;
+  a.items.forEach(i => { const p = prod(i.productId); if (p) p.qty -= i.qty; });
+  db.purchases = db.purchases.filter(x => x.id !== id); save(); render();
+}
+
+/* ---------- PAIEMENTS ---------- */
+views.payments = () => {
+  const t = filters.payType || '';
+  const list = [...db.payments].sort((a, b) => b.date.localeCompare(a.date)).filter(p => (!t || p.type === t) && match('payments', [party(p.type, p.partyId)?.name, p.method, p.note].join(' ')));
+  return `<h1>Paiements / Crédit</h1>
+  <div class="quick"><button class="btn green" onclick="newPayment('client')">Encaisser un client</button><button class="btn" onclick="newPayment('supplier')">Payer un fournisseur</button></div>
+  <div class="toolbar">${searchBox('payments')}<select id="payType" style="max-width:220px" onchange="filters.payType=this.value;render()"><option value="">Tous</option><option value="client" ${t === 'client' ? 'selected' : ''}>Reçus des clients</option><option value="supplier" ${t === 'supplier' ? 'selected' : ''}>Versés aux fournisseurs</option></select></div>
+  <p class="note">${L("Ici on note les tranches payées <b>après</b> une vente ou un achat. Ce qui est payé au moment de la vente ou de l'achat est déjà compté.", 'هنا كتسجل الدفعات اللي كتخلص <b>من بعد</b> البيع ولا الشرا. اللي تخلص فنفس الوقت ديال البيع ولا الشرا راه محسوب.')}</p>
+  ${table(['Nom', 'Date', 'Type', 'Mode', 'Note', '#Montant', ''], list.map(p => `<tr><td><b>${esc(party(p.type, p.partyId)?.name || '?')}</b></td><td>${fdate(p.date)}</td>
+    <td>${p.type === 'client' ? '<span class="badge green">Reçu client</span>' : '<span class="badge orange">Versé fournisseur</span>'}</td>
+    <td>${esc(p.method)}</td><td>${esc(p.note)}</td><td class="n"><b>${fmt(p.amount)}</b></td>
+    <td class="actions"><button class="btn sm red" onclick="deletePayment('${p.id}')" aria-label="Supprimer">×</button></td></tr>`), 'Aucun paiement')}`;
+};
+function newPayment(type, partyId) {
+  const isC = type === 'client', list = isC ? db.clients : db.suppliers;
+  if (!list.length) return uiAlert(isC ? 'Aucun client pour le moment.' : 'Aucun fournisseur pour le moment.');
+  const ordered = list.map(x => ({x, b:balance(type, x.id)})).sort((a, b) => b.b - a.b || a.x.name.localeCompare(b.x.name));
+  openModal(isC ? 'Encaisser un client' : 'Payer un fournisseur', `<div class="form">
+    <div class="full"><label for="f_party">${isC ? 'Client' : 'Fournisseur'}</label><select id="f_party" onchange="payShowBal('${type}')"><option value="">Choisir...</option>${ordered.map(({x, b}) => `<option value="${x.id}" ${x.id === partyId ? 'selected' : ''}>${esc(x.name)} — reste ${fmt(b)}</option>`).join('')}</select></div>
+    <div class="full" id="f_bal"></div>
+    <div><label for="f_amount">Montant (DH)</label><input id="f_amount" ${NUM}></div>
+    <div><label for="f_date">Date</label><input id="f_date" type="date" value="${today()}"></div>
+    <div><label for="f_method">Mode</label><select id="f_method">${opts(METHODS, 'Espèces')}</select></div>
+    <div><label for="f_note">Note</label><input id="f_note" placeholder="N° chèque, tranche..."></div>
+  </div><div class="mfoot"><button class="btn sec" onclick="closeModal()">Annuler</button><button class="btn ${isC ? 'green' : ''}" onclick="savePayment('${type}')">Enregistrer</button></div>`);
+  payShowBal(type);
+}
+function payShowBal(type) {
+  const id = val('f_party'), el = $('#f_bal'); if (!el) return;
+  if (!id) { el.innerHTML = ''; return; }
+  const b = balance(type, id);
+  el.innerHTML = `Reste actuel : ${balBadge(b)} ${b > 0 ? `<button class="btn sm sec" onclick="document.getElementById('f_amount').value=${b}">Tout payer</button>` : ''}`;
+  translate(el);
+}
+async function savePayment(type) {
+  const partyId = val('f_party'), amount = r2(num(val('f_amount')));
+  if (!partyId) return uiAlert('Choisissez un nom.');
+  if (amount <= 0) return uiAlert('Entrez un montant supérieur à 0.');
+  const b = balance(type, partyId);
+  if (amount > b + 0.009 && !await uiConfirm(`Le montant (${fmt(amount)}) dépasse le reste (${fmt(b)}). L'enregistrer comme avance ?`, 'Enregistrer')) return;
+  db.payments.push({id:uid(), type, partyId, amount, date:validDate(val('f_date')), method:val('f_method'), note:val('f_note')});
+  save(); closeModal(); render(); toast('Paiement enregistré');
+}
+async function deletePayment(id) { if (!await uiConfirm('Supprimer ce paiement ?', 'Supprimer', true)) return; db.payments = db.payments.filter(p => p.id !== id); save(); render(); }
+
+/* ---------- DÉPENSES ---------- */
+views.expenses = () => {
+  const m = filters.expMonth || today().slice(0, 7);
+  const list = db.expenses.filter(e => e.date.startsWith(m)).sort((a, b) => b.date.localeCompare(a.date));
+  return `<h1>Dépenses</h1>
+  <div class="toolbar"><button class="btn" onclick="newExpense()">+ Dépense</button><input id="expMonth" type="month" style="max-width:180px" value="${m}" onchange="filters.expMonth=this.value;render()"></div>
+  <p class="note">Total du mois : <b class="neg">${fmt(sum(list, e => e.amount))}</b></p>
+  ${table(['Catégorie', 'Date', 'Description', '#Montant', ''], list.map(e => `<tr><td><b>${esc(e.category)}</b></td><td>${fdate(e.date)}</td><td>${esc(e.note)}</td><td class="n">${fmt(e.amount)}</td><td class="actions"><button class="btn sm red" onclick="deleteExpense('${e.id}')" aria-label="Supprimer">×</button></td></tr>`), 'Aucune dépense ce mois')}`;
+};
+function newExpense() {
+  openModal('Nouvelle dépense', `<div class="form">
+    <div><label for="f_cat">Catégorie</label><select id="f_cat">${opts(EXP_CATS)}</select></div>
+    <div><label for="f_amount">Montant (DH)</label><input id="f_amount" ${NUM}></div>
+    <div><label for="f_date">Date</label><input id="f_date" type="date" value="${today()}"></div>
+    <div><label for="f_note">Description</label><input id="f_note"></div>
+  </div><div class="mfoot"><button class="btn sec" onclick="closeModal()">Annuler</button><button class="btn" onclick="saveExpense()">Enregistrer</button></div>`);
+}
+function saveExpense() {
+  const amount = num(val('f_amount')); if (amount <= 0) return uiAlert('Entrez un montant supérieur à 0.');
+  db.expenses.push({id:uid(), category:val('f_cat'), amount, date:validDate(val('f_date')), note:val('f_note')});
+  save(); closeModal(); render(); toast('Dépense enregistrée');
+}
+async function deleteExpense(id) { if (!await uiConfirm('Supprimer cette dépense ?', 'Supprimer', true)) return; db.expenses = db.expenses.filter(e => e.id !== id); save(); render(); }
+
+/* ---------- RAPPORTS ---------- */
+views.reports = () => {
+  const from = rep.from || today().slice(0, 8) + '01', to = rep.to || today(), inR = d => d >= from && d <= to;
+  const S = db.sales.filter(s => inR(s.date)), A = db.purchases.filter(a => inR(a.date)), E = db.expenses.filter(e => inR(e.date)), P = db.payments.filter(p => inR(p.date));
+  const ca = sum(S, s => s.total), cost = sum(S, s => sum(s.items, i => i.cost * i.qty)), gross = sum(S, saleProfit), exp = sum(E, e => e.amount);
+  const cashIn = sum(S, s => s.paid) + sum(P.filter(p => p.type === 'client'), p => p.amount);
+  const cashOut = sum(A, a => a.paid) + sum(P.filter(p => p.type === 'supplier'), p => p.amount) + exp;
+  const top = {};
+  S.forEach(s => s.items.forEach(i => { const k = i.productId; top[k] = top[k] || {name:i.name, q:0, ca:0, pr:0}; top[k].q += i.qty; top[k].ca += i.qty * i.price; top[k].pr += (i.price - i.cost) * i.qty; }));
+  const topL = Object.values(top).sort((a, b) => b.pr - a.pr).slice(0, 15);
+  const byCat = {}; E.forEach(e => byCat[e.category] = (byCat[e.category] || 0) + e.amount);
+  return `<h1>Rapports</h1>
+  <div class="toolbar"><input id="repFrom" type="date" style="max-width:170px" value="${from}" onchange="rep.from=this.value;render()"><span class="muted">au</span><input id="repTo" type="date" style="max-width:170px" value="${to}" onchange="rep.to=this.value;render()"></div>
+  <div class="toolbar"><button class="btn sec sm" onclick="rep.from=today();rep.to=today();render()">Aujourd'hui</button>
+  <button class="btn sec sm" onclick="rep.from=today().slice(0,8)+'01';rep.to=today();render()">Ce mois</button>
+  <button class="btn sec sm" onclick="rep.from=today().slice(0,5)+'01-01';rep.to=today();render()">Cette année</button></div>
+  <div class="stats">
+    <div class="stat"><div class="l">Chiffre d'affaires</div><div class="v">${fmt(ca)}</div><div class="s">${S.length} vente(s)</div></div>
+    <div class="stat"><div class="l">Coût des produits vendus</div><div class="v">${fmt(cost)}</div></div>
+    <div class="stat"><div class="l">Bénéfice brut</div><div class="v pos">${fmt(gross)}</div></div>
+    <div class="stat"><div class="l">Dépenses</div><div class="v neg">${fmt(exp)}</div></div>
+    <div class="stat"><div class="l">Bénéfice net</div><div class="v ${gross - exp >= 0 ? 'pos' : 'neg'}">${fmt(gross - exp)}</div></div>
+    <div class="stat"><div class="l">Achats</div><div class="v">${fmt(sum(A, a => a.total))}</div><div class="s">${A.length} achat(s)</div></div>
+    <div class="stat"><div class="l">Argent entré</div><div class="v pos">${fmt(cashIn)}</div><div class="s">ventes + crédits encaissés</div></div>
+    <div class="stat"><div class="l">Argent sorti</div><div class="v neg">${fmt(cashOut)}</div><div class="s">fournisseurs + dépenses</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h2>Produits les plus rentables</h2>${table(['Produit', '#Qté', '#CA', '#Bénéfice'], topL.map(t => `<tr><td>${esc(t.name)}</td><td class="n">${t.q}</td><td class="n">${fmt(t.ca)}</td><td class="n pos">${fmt(t.pr)}</td></tr>`), 'Aucune vente sur la période')}</div>
+    <div class="card"><h2>Dépenses par catégorie</h2>${table(['Catégorie', '#Montant'], Object.entries(byCat).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${fmt(v)}</td></tr>`), 'Aucune dépense sur la période')}</div>
+  </div>`;
+};
+
+/* ---------- PARAMÈTRES ---------- */
+views.settings = () => {
+  const s = db.settings;
+  return `<h1>Paramètres</h1>
+  <div class="card"><h2>Langue / اللغة</h2>${langSwitch()}</div>
+  <div class="card"><h2>Magasin (sur les factures)</h2><div class="form">
+    <div><label for="s_name">Nom du magasin</label><input id="s_name" value="${esc(s.shopName)}"></div>
+    <div><label for="s_phone">Téléphone</label><input id="s_phone" type="tel" value="${esc(s.phone)}"></div>
+    <div class="full"><label for="s_address">Adresse</label><input id="s_address" value="${esc(s.address)}"></div>
+    <div class="full"><label for="s_ice">ICE / RC / Patente</label><input id="s_ice" value="${esc(s.ice)}"></div>
+    <div class="full"><label for="s_footer">Message en bas de facture</label><input id="s_footer" value="${esc(s.footer)}" placeholder="Garantie 3 mois..."></div>
+  </div><div class="mfoot"><button class="btn" onclick="saveSettings()">Enregistrer</button></div></div>
+  <div class="card"><h2>Sauvegarde</h2>
+    <p class="note">Vos données sont enregistrées automatiquement dans ce téléphone. Si l'application est supprimée, elles sont perdues : faites une copie chaque semaine (envoyez-la sur WhatsApp, iCloud ou par e-mail).</p>
+    <p class="note">Dernière copie : ${s.lastExport ? fdate(s.lastExport) : 'jamais'}</p>
+    <div class="toolbar"><button class="btn sec" onclick="exportJSON()">Télécharger une copie</button><button class="btn sec" onclick="$('#importInput').click()">Restaurer une copie</button></div>
+    <p class="note" style="margin:0">Une copie faite sur le PC (fichier .json) peut aussi être restaurée ici.</p></div>
+  <div class="card"><h2>Zone dangereuse</h2><button class="btn red" onclick="resetAll()">Effacer toutes les données</button></div>`;
+};
+function saveSettings() {
+  Object.assign(db.settings, {shopName:val('s_name'), phone:val('s_phone'), address:val('s_address'), ice:val('s_ice'), footer:val('s_footer')});
+  save(); render(); toast('Paramètres enregistrés');
+}
+async function exportJSON() {
+  if (await offerFile('sauvegarde-magasin-' + today() + '.json', JSON.stringify(db))) { db.settings.lastExport = today(); save(); render(); }
+}
+function importJSON(input) {
+  const f = input.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = async () => {
+    input.value = '';
+    try {
+      const d = JSON.parse(rd.result); if (!d.products) throw new Error('ce fichier n\'est pas une sauvegarde du magasin');
+      if (!await uiConfirm('Remplacer TOUTES les données actuelles par cette copie ?', 'Remplacer', true)) return;
+      db = normalize(d); save(); render(); toast('Copie restaurée');
+    } catch (e) { uiAlert('Restauration impossible : ' + e.message); }
+  };
+  rd.readAsText(f);
+}
+async function resetAll() {
+  if (!await uiConfirm('Effacer TOUTES les données (produits, ventes, clients...) ?\nTéléchargez d\'abord une copie.', 'Continuer', true)) return;
+  const t = await uiPrompt('Tapez EFFACER pour confirmer', 'EFFACER');
+  if (t !== 'EFFACER') return;
+  db = emptyDB(); save(); render(); toast('Données effacées');
+}
+
+/* ================== DÉMARRAGE ================== */
+if (/\.netlify\.app$/.test(location.hostname)) document.documentElement.classList.add('has-badge');
+loadCache();
+render();
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    reg.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+  }).catch(() => {});
+  // Quand une nouvelle version est installée, recharger une fois pour l'afficher.
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
+}
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+</script>
+</body>
+</html>
