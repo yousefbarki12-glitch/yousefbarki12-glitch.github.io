@@ -260,6 +260,7 @@ nav.tabs button.on::after{content:"";position:absolute;top:6px;width:28px;height
   --bg:#0f131b; --panel:#181e2a; --panel2:#1f2635; --fg:#eef1f7; --muted:#9aa3b8; --line:#2a3242;
   --accent:#93a6d0; --accent-2:#2fd6a8; --accent-fg:#0f131b; --accent-soft:#232c40; --hero-1:#43557f; --hero-2:#28344f;
   --good:#34d3a4; --good-soft:#12302a}
+a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 .brandbtn{display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:none;border:0;padding:4px 6px 4px 0;margin:-4px 0;color:inherit;font:inherit;cursor:pointer;text-align:start;border-radius:12px}
 .brandbtn:active{background:var(--panel2)}
 .brandchev{color:var(--muted);flex-shrink:0}
@@ -352,6 +353,128 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 </div>
 <div id="toast" hidden></div>
 <div id="auth" class="auth" hidden></div>
+<script type="text/plain" id="gsCode">// YourTechno — sauvegarde automatique de l'application dans Google Sheets
+// Tout est rempli par l'application, bien organisé en feuilles. Ne modifiez rien à la main ici.
+var KEY = "__KEY__";
+var C1 = "#3c4d74", C2 = "#556C96", GREEN = "#00C091", CHIP = "#e9edf5", BAND = "#f5f7fb", LINE = "#dce2ec", RED = "#c62828", MUTED = "#6b7488";
+
+function doGet() { return out({ ok: true, msg: "YourTechno : la feuille fonctionne ✅" }); }
+
+function doPost(e) {
+  var p;
+  try { p = JSON.parse(e.postData.contents); } catch (err) { return out({ ok: false, err: "json" }); }
+  if (!p || p.key !== KEY) return out({ ok: false, err: "key" });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(28000);
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (p.title) ss.rename(p.title);
+    (p.sheets || []).forEach(function (t, i) { writeSheet(ss, t, i, p.at, p.rtl); });
+    ["Sheet1", "Feuille 1", "Feuille1", "ورقة1", "Hoja 1", "Blatt 1"].forEach(function (n) {
+      var s = ss.getSheetByName(n);
+      if (s && ss.getSheets().length > 1) ss.deleteSheet(s);
+    });
+    if (p.sheets && p.sheets.length) ss.setActiveSheet(ss.getSheetByName(p.sheets[0].name));
+    return out({ ok: true, url: ss.getUrl(), at: p.at });
+  } finally { lock.releaseLock(); }
+}
+
+function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+
+function writeSheet(ss, t, idx, at, rtl) {
+  var sh = ss.getSheetByName(t.name) || ss.insertSheet(t.name);
+  ss.setActiveSheet(sh); ss.moveActiveSheet(idx + 1);
+  var W = 1;
+  t.sections.forEach(function (s) { W = Math.max(W, s.cols.length); });
+  if (sh.getMaxColumns() < W) sh.insertColumnsAfter(sh.getMaxColumns(), W - sh.getMaxColumns());
+  sh.getBandings().forEach(function (b) { b.remove(); });
+  sh.getRange(1, 1, sh.getMaxRows(), sh.getMaxColumns()).breakApart();
+  sh.clear(); sh.setConditionalFormatRules([]); sh.setFrozenRows(0);
+  sh.setRightToLeft(!!rtl); sh.setHiddenGridlines(true);
+  sh.setTabColor(t.color || C2);
+
+  sh.getRange(1, 1, 1, W).merge().setValue(t.title).setBackground(C1).setFontColor("#ffffff")
+    .setFontSize(17).setFontWeight("bold").setHorizontalAlignment("center").setVerticalAlignment("middle");
+  sh.setRowHeight(1, 46);
+  var when = Utilities.formatDate(new Date(at || Date.now()), "Africa/Casablanca", "dd/MM/yyyy HH:mm");
+  sh.getRange(2, 1, 1, W).merge().setValue(rtl ? "🔄 آخر تحديث: " + when + "  ·  كيتعمر بوحدو من التطبيق، ما تبدلش هنا"
+                                               : "🔄 Mise à jour : " + when + "  ·  rempli automatiquement par l'application, ne pas modifier ici")
+    .setFontColor(MUTED).setFontSize(10).setHorizontalAlignment("center").setBackground(CHIP);
+  sh.getRange(3, 1, 1, W).setBackground(GREEN); sh.setRowHeight(3, 4);
+
+  var r = 5, rules = [];
+  t.sections.forEach(function (s) {
+    var n = s.cols.length;
+    if (s.title) {
+      sh.getRange(r, 1, 1, n).merge().setValue(s.title).setFontWeight("bold").setFontSize(13)
+        .setFontColor(C1).setBackground(CHIP).setVerticalAlignment("middle");
+      sh.setRowHeight(r, 30); r++;
+    }
+    var hr = r;
+    sh.getRange(r, 1, 1, n).setValues([s.cols.map(function (c) { return c.h; })])
+      .setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center").setVerticalAlignment("middle").setWrap(true);
+    sh.setRowHeight(r, 36); r++;
+    if (!s.rows.length) {
+      sh.getRange(hr, 1, 1, n).setBackground(C2);
+      sh.getRange(r, 1, 1, n).merge().setValue(rtl ? "— ما كاين والو —" : "— Aucune donnée —").setFontColor(MUTED).setHorizontalAlignment("center");
+      r += 3; return;
+    }
+    var rows = s.rows.map(function (row) {
+      return s.cols.map(function (c, j) {
+        var v = row[j];
+        if (v === null || v === undefined) return "";
+        if (c.t === "date" && v) { var d = new Date(v + "T12:00:00"); return isNaN(d) ? v : d; }
+        return v;
+      });
+    });
+    var r0 = r, len = rows.length;
+    sh.getRange(r, 1, len, n).setValues(rows).setVerticalAlignment("middle");
+    s.cols.forEach(function (c, j) {
+      var col = sh.getRange(r0, j + 1, len, 1);
+      if (c.t === "money") {
+        col.setNumberFormat('#,##0.00" DH";-#,##0.00" DH";"—"').setHorizontalAlignment("center").setFontWeight("bold");
+        rules.push(SpreadsheetApp.newConditionalFormatRule().whenNumberLessThan(0).setFontColor(RED).setRanges([col]).build());
+      } else if (c.t === "num") {
+        col.setNumberFormat("#,##0.##").setHorizontalAlignment("center");
+      } else if (c.t === "date") {
+        col.setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
+      } else {
+        col.setWrap(true);
+      }
+      if (c.c) col.setFontColor(c.c);
+    });
+    r += len;
+    if (s.total) {
+      var tr = sh.getRange(r, 1, 1, n);
+      tr.setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+      sh.getRange(r, 1).setValue(rtl ? "المجموع" : "TOTAL");
+      s.cols.forEach(function (c, j) {
+        if (j > 0 && c.sum) {
+          var cell = sh.getRange(r, j + 1);
+          cell.setFormula("=SUM(" + sh.getRange(r0, j + 1, len, 1).getA1Notation() + ")");
+          cell.setNumberFormat(c.t === "money" ? '#,##0.00" DH";-#,##0.00" DH"' : "#,##0.##");
+        }
+      });
+      sh.setRowHeight(r, 32); r++;
+    }
+    var band = sh.getRange(hr, 1, r - hr, n).applyRowBanding(SpreadsheetApp.BandingTheme.BLUE, true, !!s.total)
+      .setHeaderRowColor(C2).setFirstRowColor("#ffffff").setSecondRowColor(BAND);
+    if (s.total) band.setFooterRowColor(GREEN);
+    sh.getRange(hr, 1, r - hr, n).setBorder(true, true, true, true, true, true, LINE, SpreadsheetApp.BorderStyle.SOLID);
+    r += 2;
+  });
+  sh.setConditionalFormatRules(rules);
+  sh.setFrozenRows(3);
+  for (var j = 1; j <= W; j++) {
+    sh.autoResizeColumn(j);
+    var w = sh.getColumnWidth(j);
+    sh.setColumnWidth(j, Math.min(320, Math.max(110, w + 18)));
+  }
+  if (sh.getMaxColumns() > W) sh.deleteColumns(W + 1, sh.getMaxColumns() - W);
+  var keep = Math.max(r + 5, 20);
+  if (sh.getMaxRows() > keep) sh.deleteRows(keep + 1, sh.getMaxRows() - keep);
+}
+</script>
 <div id="printArea"></div>
 <input type="file" id="importInput" accept=".json,application/json" hidden onchange="importJSON(this)">
 
@@ -609,6 +732,7 @@ function save() {
   db.savedAt = Date.now();
   try { localStorage.setItem(userKey(), JSON.stringify(db)); } catch (e) { setS('error'); return uiAlert('Enregistrement impossible : ' + e.message); }
   if (sb && user) { setS('saving'); clearTimeout(pushTimer); pushTimer = setTimeout(push, 800); } else setS('saved');
+  queueSheet();
 }
 async function push() {
   if (!sb || !user) return;
@@ -1193,6 +1317,7 @@ views.settings = () => {
   const s = db.settings;
   return `<h1>Paramètres</h1>
   <div class="card"><h2>Langue / اللغة</h2>${langSwitch()}</div>
+  ${sheetCard()}
   ${user ? `<div class="card"><h2>Mon compte</h2><p class="note" style="direction:ltr;text-align:start">${esc(user.email)}</p><button class="btn sec" onclick="logout()">${L('Se déconnecter', 'خروج')}</button></div>` : ''}
   <div class="card"><h2>Magasin (sur les factures)</h2><div class="form">
     <div><label for="s_name">Nom du magasin</label><input id="s_name" value="${esc(s.shopName)}"></div>
@@ -1233,6 +1358,135 @@ async function resetAll() {
   const t = await uiPrompt('Tapez EFFACER pour confirmer', 'EFFACER');
   if (t !== 'EFFACER') return;
   db = emptyDB(); save(); render(); toast('Données effacées');
+}
+
+/* ================== GOOGLE SHEETS : copie organisée, mise à jour après chaque changement ================== */
+const SH = () => { const s = db.settings.sheet = db.settings.sheet || {}; if (!s.key) s.key = 'yt_' + uid() + uid() + uid(); return s; };
+const gCol = (h, t, o) => Object.assign({h, t}, o || {});
+const cM = (h, o) => gCol(h, 'money', Object.assign({sum: 1}, o)), cN = (h, o) => gCol(h, 'num', o), cD = h => gCol(h, 'date'), cT = h => gCol(h, 'text');
+function sheetTables() {
+  const byDate = a => [...a].sort((x, y) => (y.date || '').localeCompare(x.date || '') || String(y.num || '').localeCompare(String(x.num || '')));
+  const t = today(), m = t.slice(0, 7);
+  const sM = db.sales.filter(s => s.date.startsWith(m));
+  const expM = sum(db.expenses.filter(e => e.date.startsWith(m)), e => e.amount);
+  const cl = db.clients.map(c => ({c, b: clientBalance(c.id)})), su = db.suppliers.map(s => ({s, b: supplierBalance(s.id)}));
+  const kv = [cT(L('Indicateur', 'البيان')), cM(L('Valeur', 'القيمة'), {sum: 0})];
+  const shop = db.settings.shopName || 'YourTechno';
+  const items = s => s.items.map(i => i.qty + '× ' + i.name).join(' · ');
+  return [
+    {name: L('📊 Résumé', '📊 الملخص'), title: '💻 ' + shop + ' — ' + L('Résumé', 'الملخص'), color: '#3c4d74', sections: [
+      {title: L('💡 Chiffres clés', '💡 الأرقام الكبار'), cols: kv, rows: [
+        [L("Ventes aujourd'hui", 'مبيعات اليوم'), sum(db.sales.filter(s => s.date === t), s => s.total)],
+        [L('Ventes ce mois', 'مبيعات هاد الشهر'), sum(sM, s => s.total)],
+        [L('Bénéfice net du mois', 'الربح الصافي ديال الشهر'), sum(sM, saleProfit) - expM],
+        [L('Valeur du stock (prix d\'achat)', 'قيمة المخزون (بثمن الشرا)'), sum(db.products, p => p.qty * p.buy)],
+        [L('Crédit clients (on vous doit)', 'كريدي الزبناء (اللي ليك)'), sum(cl.filter(x => x.b > 0), x => x.b)],
+        [L('Dettes fournisseurs (vous devez)', 'ديون المزودين (اللي عليك)'), sum(su.filter(x => x.b > 0), x => x.b)],
+        [L('Total des ventes', 'مجموع المبيعات'), sum(db.sales, s => s.total)],
+        [L('Bénéfice brut total', 'مجموع الربح الخام'), sum(db.sales, saleProfit)],
+        [L('Total des dépenses', 'مجموع المصاريف'), sum(db.expenses, e => e.amount)]]},
+      {title: L('👤 Clients qui doivent', '👤 زبناء عليهم الكريدي'), cols: [cT(L('Client', 'الزبون')), cT(L('Téléphone', 'التيليفون')), cM(L('Reste à payer', 'الباقي'))],
+        rows: cl.filter(x => x.b > 0.009).sort((a, b) => b.b - a.b).map(x => [x.c.name, x.c.phone || '', x.b]), total: 1},
+      {title: L('🏭 Fournisseurs à payer', '🏭 مزودين خاصك تخلصهم'), cols: [cT(L('Fournisseur', 'المزود')), cT(L('Téléphone', 'التيليفون')), cM(L('Reste à payer', 'الباقي'))],
+        rows: su.filter(x => x.b > 0.009).sort((a, b) => b.b - a.b).map(x => [x.s.name, x.s.phone || '', x.b]), total: 1}]},
+    {name: L('💻 Stock', '💻 المخزون'), title: L('💻 Stock / Produits', '💻 المخزون / المنتوجات'), color: '#556C96', sections: [{cols: [
+      cT(L('Produit', 'المنتوج')), cT(L('Catégorie', 'النوع')), cT(L('État', 'الحالة')), cT(L('Caractéristiques', 'المواصفات')), cN(L('Qté', 'الكمية'), {sum: 1}),
+      cM(L("Prix d'achat", 'ثمن الشرا'), {sum: 0}), cM(L('Prix de vente', 'ثمن البيع'), {sum: 0}), cM(L('Marge', 'الهامش'), {sum: 0}), cM(L('Valeur du stock', 'قيمة المخزون'))],
+      rows: [...db.products].sort((a, b) => a.name.localeCompare(b.name)).map(p => [p.name, tr(p.category || ''), tr(p.condition || ''), [p.cpu, p.ram, p.storage, p.screen, p.gpu].filter(Boolean).join(' / '), p.qty, p.buy, p.sell, p.sell - p.buy, p.qty * p.buy]), total: 1}]},
+    {name: L('🧾 Ventes', '🧾 المبيعات'), title: L('🧾 Ventes', '🧾 المبيعات'), color: '#00C091', sections: [{cols: [
+      cD(L('Date', 'التاريخ')), cT(L('N°', 'الرقم')), cT(L('Client', 'الزبون')), cT(L('Articles', 'السلع')), cT(L('N° série', 'الرقم التسلسلي')), cT(L('Mode', 'طريقة الأداء')),
+      cM(L('Total', 'المجموع')), cM(L('Payé', 'المخلص')), cM(L('Reste', 'الباقي')), cM(L('Bénéfice', 'الربح'))],
+      rows: byDate(db.sales).map(s => [s.date, s.num, client(s.clientId)?.name || L('Client passager', 'زبون عابر'), items(s), s.items.map(i => i.serial).filter(Boolean).join(' · '), tr(s.method || ''), s.total, s.paid, s.total - s.paid, saleProfit(s)]), total: 1}]},
+    {name: L('📦 Achats', '📦 المشتريات'), title: L('📦 Achats', '📦 المشتريات'), color: '#7a8bb0', sections: [{cols: [
+      cD(L('Date', 'التاريخ')), cT(L('N°', 'الرقم')), cT(L('Fournisseur', 'المزود')), cT(L('Articles', 'السلع')), cT(L('Mode', 'طريقة الأداء')), cM(L('Total', 'المجموع')), cM(L('Payé', 'المخلص')), cM(L('Reste', 'الباقي'))],
+      rows: byDate(db.purchases).map(a => [a.date, a.num, supplier(a.supplierId)?.name || '', a.items.map(i => i.qty + '× ' + i.name + ' @ ' + i.price).join(' · '), tr(a.method || ''), a.total, a.paid, a.total - a.paid]), total: 1}]},
+    {name: L('👤 Clients', '👤 الزبناء'), title: L('👤 Clients', '👤 الزبناء'), color: '#2e9f86', sections: [{cols: [
+      cT(L('Nom', 'السمية')), cT(L('Téléphone', 'التيليفون')), cT('CIN'), cT(L('Adresse', 'العنوان')), cM(L('Crédit d\'avant', 'الكريدي القديم')), cM(L('Total acheté', 'مجموع الشرا')), cM(L('Reste à payer', 'الباقي'))],
+      rows: cl.sort((a, b) => a.c.name.localeCompare(b.c.name)).map(({c, b}) => [c.name, c.phone || '', c.cin || '', c.address || '', num(c.opening), sum(db.sales.filter(s => s.clientId === c.id), s => s.total), b]), total: 1}]},
+    {name: L('🏭 Fournisseurs', '🏭 المزودين'), title: L('🏭 Fournisseurs', '🏭 المزودين'), color: '#b07a2e', sections: [{cols: [
+      cT(L('Nom', 'السمية')), cT(L('Téléphone', 'التيليفون')), cT('ICE / RC'), cT(L('Adresse', 'العنوان')), cM(L('Dette d\'avant', 'الدين القديم')), cM(L('Total acheté', 'مجموع الشرا')), cM(L('Reste à payer', 'الباقي'))],
+      rows: su.sort((a, b) => a.s.name.localeCompare(b.s.name)).map(({s, b}) => [s.name, s.phone || '', s.cin || '', s.address || '', num(s.opening), sum(db.purchases.filter(p => p.supplierId === s.id), p => p.total), b]), total: 1}]},
+    {name: L('💵 Paiements', '💵 الأداءات'), title: L('💵 Paiements après vente / achat', '💵 الأداءات من بعد البيع ولا الشرا'), color: '#4a7fbf', sections: [
+      {title: L('Reçus des clients', 'المستلم من الزبناء'), cols: [cD(L('Date', 'التاريخ')), cT(L('Client', 'الزبون')), cT(L('Mode', 'طريقة الأداء')), cT(L('Note', 'ملاحظة')), cM(L('Montant', 'المبلغ'))],
+        rows: byDate(db.payments.filter(p => p.type === 'client')).map(p => [p.date, client(p.partyId)?.name || '?', tr(p.method || ''), p.note || '', p.amount]), total: 1},
+      {title: L('Versés aux fournisseurs', 'المخلص للمزودين'), cols: [cD(L('Date', 'التاريخ')), cT(L('Fournisseur', 'المزود')), cT(L('Mode', 'طريقة الأداء')), cT(L('Note', 'ملاحظة')), cM(L('Montant', 'المبلغ'))],
+        rows: byDate(db.payments.filter(p => p.type === 'supplier')).map(p => [p.date, supplier(p.partyId)?.name || '?', tr(p.method || ''), p.note || '', p.amount]), total: 1}]},
+    {name: L('📉 Dépenses', '📉 المصاريف'), title: L('📉 Dépenses du magasin', '📉 مصاريف المحل'), color: '#c25b4a', sections: [{cols: [
+      cD(L('Date', 'التاريخ')), cT(L('Catégorie', 'النوع')), cT(L('Description', 'الوصف')), cM(L('Montant', 'المبلغ'))],
+      rows: byDate(db.expenses).map(e => [e.date, tr(e.category || ''), e.note || '', e.amount]), total: 1}]}
+  ];
+}
+let shT = null, shBusy = false, shAgain = false, shSt = {state: '', at: 0, msg: ''};
+function queueSheet() { const s = db.settings.sheet; if (!s || !s.url) return; clearTimeout(shT); shT = setTimeout(() => sendSheet(false), 4000); }
+function setShSt(state, msg) { shSt = {state, msg: msg || '', at: Date.now()}; const el = document.getElementById('shStatus'); if (el) { el.innerHTML = shStatusHtml(); translate(el); } }
+function shStatusHtml() {
+  const s = db.settings.sheet || {}, time = shSt.at ? new Date(shSt.at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'}) : '';
+  if (!s.url) return `<span class="badge">${L('Pas encore reliée', 'ما زال ما مربوطة')}</span>`;
+  if (shSt.state === 'sending') return `<span class="badge orange">${L('Envoi en cours…', 'كيتصيفط…')}</span>`;
+  if (shSt.state === 'ok') return `<span class="badge green">${L('À jour', 'محدثة')} · ${time}</span>`;
+  if (shSt.state === 'sent') return `<span class="badge">${L('Envoyée', 'تصيفطات')} · ${time}</span>`;
+  if (shSt.state === 'err') return `<span class="badge red">${esc(shSt.msg)}</span>`;
+  return `<span class="badge green">${L('Reliée · mise à jour automatique', 'مربوطة · كتحدث بوحدها')}</span>`;
+}
+async function sendSheet(manual) {
+  const s = SH();
+  if (!s.url) { if (manual) toast(L("Collez d'abord le lien de la feuille", 'لصق الرابط ديال الورقة أولا')); return; }
+  if (shBusy) { shAgain = true; return; }
+  shBusy = true;
+  let body;
+  try { body = JSON.stringify({key: s.key, at: new Date().toISOString(), rtl: LANG === 'ar', title: (db.settings.shopName || 'YourTechno') + ' — ' + L('Sauvegarde', 'النسخة الاحتياطية'), sheets: sheetTables()}); }
+  catch (e) { shBusy = false; setShSt('err', e.message); return; }
+  setShSt('sending');
+  try {
+    const r = await fetch(s.url, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body});
+    const j = await r.json();
+    if (j.ok) {
+      if (j.url && s.sheetUrl !== j.url) { s.sheetUrl = j.url; shBusy = false; save(); if (current === 'settings') render(); }
+      setShSt('ok'); if (manual) toast(L('✅ Tout est enregistré dans Google Sheets', '✅ تسجل كلشي فـ Google Sheets'));
+    } else {
+      setShSt('err', j.err === 'key' ? L('Clé incorrecte : recopiez le code dans Apps Script puis refaites « Déployer »', 'المفتاح ماشي هو: عاود نسخ الكود فـ Apps Script ودير Deploy جديد') : L('Erreur de la feuille : ', 'الورقة رجعات غلط: ') + (j.err || ''));
+    }
+  } catch (e) {
+    try { await fetch(s.url, {method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body}); setShSt('sent'); }
+    catch (e2) { setShSt('err', navigator.onLine === false ? L('Pas de connexion · envoi au retour d\'internet', 'ما كاينش الأنترنيت · غادي تتصيفط ملي يرجع') : L('La feuille ne répond pas : vérifiez le lien', 'الورقة ما جاوباتش: شوف الرابط')); }
+  } finally { shBusy = false; if (shAgain) { shAgain = false; queueSheet(); } }
+}
+window.addEventListener('online', () => { if (shSt.state === 'err') queueSheet(); });
+function sheetCode() { return $('#gsCode').textContent.replace('__KEY__', SH().key).trim(); }
+async function copySheetCode() {
+  const code = sheetCode(); save();
+  const box = $('#shCodeBox');
+  try { await navigator.clipboard.writeText(code); toast(L('📋 Code copié · collez-le dans Apps Script', '📋 تنسخ الكود · لصقو فـ Apps Script')); }
+  catch (e) { if (box) { box.hidden = false; box.value = code; box.focus(); box.select(); } toast(L('Copiez le code depuis la case', 'نسخ الكود من الخانة')); }
+}
+function connectSheet() {
+  const url = val('shUrl');
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec/.test(url)) return uiAlert(L('Collez le lien « Application Web » qui finit par /exec (Apps Script → Déployer).', 'لصق الرابط ديال « Application Web » اللي كيسالي بـ /exec (Apps Script ← Déployer).'));
+  SH().url = url; save(); render(); sendSheet(true);
+}
+async function disconnectSheet() {
+  if (!await uiConfirm(L('Délier Google Sheets ? La feuille reste dans votre Google Drive.', 'نفكو الربط مع Google Sheets؟ الورقة كتبقى فـ Google Drive ديالك.'), L('Délier', 'فك الربط'), true)) return;
+  const s = SH(); delete s.url; delete s.sheetUrl; save(); render();
+}
+function sheetCard() {
+  const s = db.settings.sheet || {};
+  if (s.url) return `<div class="card"><h2>📗 Google Sheets</h2>
+    <p class="note">${L('Toutes vos données sont copiées automatiquement dans votre feuille Google, quelques secondes après chaque changement.', 'كاع البيانات ديالك كتنسخ أوتوماتيكيا فالورقة ديال Google، شي ثواني من بعد كل تبديل.')}</p>
+    <div id="shStatus" style="margin-bottom:12px">${shStatusHtml()}</div>
+    <div class="toolbar">${s.sheetUrl ? `<a class="btn green" href="${esc(s.sheetUrl)}" target="_blank" rel="noopener">${L('Ouvrir la feuille', 'حل الورقة')}</a>` : ''}
+    <button class="btn sec" onclick="sendSheet(true)">${L('Envoyer maintenant', 'صيفط دابا')}</button>
+    <button class="btn sec" onclick="disconnectSheet()">${L('Délier', 'فك الربط')}</button></div></div>`;
+  return `<div class="card"><h2>📗 Google Sheets</h2>
+    <p class="note">${L('Gardez une copie bien organisée de tout (stock, ventes, crédit…) dans Google Sheets, mise à jour toute seule.', 'خلي نسخة منظمة ديال كلشي (المخزون، المبيعات، الكريدي…) فـ Google Sheets، كتحدث بوحدها.')}</p>
+    <ol class="note" style="padding-inline-start:20px;line-height:1.7">
+      <li>${L('Ouvrez', 'حل')} <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a> ${L('(nouvelle feuille Google).', '(ورقة Google جديدة).')}</li>
+      <li>${L('Menu « Extensions » → « Apps Script ».', 'القائمة « Extensions » ← « Apps Script ».')}</li>
+      <li>${L('Effacez tout, puis collez le code :', 'مسح كلشي، ولصق الكود:')} <button class="btn sm" onclick="copySheetCode()">${L('Copier le code', 'نسخ الكود')}</button></li>
+      <li>${L('« Déployer » → « Nouveau déploiement » → type « Application Web », accès : « Tout le monde » → « Déployer » → autorisez.', '« Déployer » ← « Nouveau déploiement » ← النوع « Application Web »، الوصول: « Tout le monde » ← « Déployer » ← وافق.')}</li>
+      <li>${L('Copiez le lien qui finit par /exec et collez-le ici :', 'نسخ الرابط اللي كيسالي بـ /exec ولصقو هنا:')}</li>
+    </ol>
+    <textarea id="shCodeBox" rows="4" hidden readonly style="font:12px monospace;margin-bottom:8px"></textarea>
+    <div class="row"><input id="shUrl" placeholder="https://script.google.com/macros/s/…/exec" style="direction:ltr"><button class="btn" onclick="connectSheet()">${L('Relier', 'ربط')}</button></div></div>`;
 }
 
 /* ================== CONNEXION / CRÉATION DE COMPTE ================== */
