@@ -255,7 +255,28 @@ nav.tabs button.on::after{content:"";position:absolute;top:6px;width:28px;height
   #printArea,#printArea *{visibility:visible}
   #printArea{display:block;position:absolute;left:0;top:0;width:100%;background:#fff}
 }
+/* Écran de connexion */
+.auth{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;display:flex;justify-content:center;
+  padding:calc(48px + env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px))}
+.authbox{width:100%;max-width:400px;display:flex;flex-direction:column;gap:4px}
+.authbox h1{margin:6px 0 2px}
+.alogo{width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,var(--hero-1),var(--hero-2));color:#fff;display:grid;place-items:center;box-shadow:0 10px 24px color-mix(in srgb,var(--hero-1) 35%,transparent)}
+.alogo svg{width:34px;height:34px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--panel2);border-radius:12px;padding:4px;margin:10px 0 14px;box-shadow:inset 0 0 0 1px var(--line)}
+.seg button{border:0;background:none;padding:10px;border-radius:9px;font:600 14px var(--f-body);color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--panel);color:var(--fg);box-shadow:var(--shadow)}
+#authForm{display:flex;flex-direction:column;gap:4px}
+#authForm input{margin-bottom:10px;background:var(--panel)}
+#authBtn{margin-top:4px;min-height:52px;font-size:16px}
+#authBtn:disabled{opacity:.6}
+.gbtn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:52px;border:0;border-radius:12px;background:var(--panel);color:var(--fg);font:600 16px var(--f-body);box-shadow:var(--shadow),inset 0 0 0 1px var(--line);cursor:pointer;margin-top:10px}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin:12px 0 2px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.linkbtn{background:none;border:0;color:var(--accent);font:600 14px var(--f-body);padding:10px;cursor:pointer}
+.amsg{margin:2px 0 8px;padding:10px 12px;border-radius:12px;background:var(--bad-soft);color:var(--bad);font-size:14px;line-height:1.4}
+.amsg.ok{background:var(--good-soft);color:var(--good)}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 
@@ -277,6 +298,7 @@ nav.tabs button.on::after{content:"";position:absolute;top:6px;width:28px;height
   </div>
 </div>
 <div id="toast" hidden></div>
+<div id="auth" class="auth" hidden></div>
 <div id="printArea"></div>
 <input type="file" id="importInput" accept=".json,application/json" hidden onchange="importJSON(this)">
 
@@ -520,15 +542,59 @@ function normalize(d) {
 const hasData = d => d.products.length || d.clients.length || d.suppliers.length || d.sales.length || d.purchases.length;
 function loadCache() { try { db = normalize(JSON.parse(localStorage.getItem(KEY))); } catch (e) { db = emptyDB(); } }
 
-/* ---------- Stockage dans le téléphone ---------- */
+/* ---------- Comptes en ligne (Supabase) + copie dans le téléphone ---------- */
+// Adresse et clé publique du projet Supabase (la clé « anon » est faite pour être dans l'app ; la sécurité vient des règles RLS).
+const SB_URL = 'https://deqxhfuzbyxnibbchdgf.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlcXhoZnV6Ynl4bmliYmNoZGdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU0NDk1OTUsImV4cCI6MjExMTAyNTU5NX0.8W7Lb3Z4zX7IExi9p5qWfSpG9AbIvtj2MFHeePrXw8g';
+const sb = (SB_URL && SB_KEY && window.supabase) ? window.supabase.createClient(SB_URL, SB_KEY) : null;
+let user = null, pushTimer = null, pushing = false, pushAgain = false;
+const userKey = () => user ? KEY + ':' + user.id : KEY;
+Object.assign(AR, {'Enregistrement...':'كيتسجل...', 'Hors ligne':'بلا أنترنيت', 'Mon compte':'الحساب ديالي'});
 let sState = 'saved';
 function save() {
   db.savedAt = Date.now();
-  try { localStorage.setItem(KEY, JSON.stringify(db)); setS('saved'); } catch (e) { setS('error'); uiAlert('Enregistrement impossible : ' + e.message); }
+  try { localStorage.setItem(userKey(), JSON.stringify(db)); } catch (e) { setS('error'); return uiAlert('Enregistrement impossible : ' + e.message); }
+  if (sb && user) { setS('saving'); clearTimeout(pushTimer); pushTimer = setTimeout(push, 800); } else setS('saved');
+}
+async function push() {
+  if (!sb || !user) return;
+  if (pushing) { pushAgain = true; return; }
+  pushing = true; pushTimer = null; setS('saving');
+  let error = null;
+  try { ({error} = await sb.from('shops').upsert({user_id: user.id, data: db, updated_at: new Date().toISOString()})); } catch (e) { error = e; }
+  pushing = false;
+  if (error) console.warn(error);
+  setS(error ? (navigator.onLine === false ? 'offline' : 'error') : 'saved');
+  if (pushAgain) { pushAgain = false; push(); }
+}
+window.addEventListener('online', () => { if (['offline', 'error'].includes(sState)) push(); });
+async function pull() {
+  let res;
+  try { res = await sb.from('shops').select('data').eq('user_id', user.id).maybeSingle(); } catch (e) { res = {error: e}; }
+  if (res.error) { setS(navigator.onLine === false ? 'offline' : 'error'); return; }
+  const remote = res.data && res.data.data;
+  if (remote && remote.products && (remote.savedAt || 0) >= (db.savedAt || 0)) {
+    db = normalize(remote); try { localStorage.setItem(userKey(), JSON.stringify(db)); } catch (e) {}
+    setS('saved'); render();
+  } else if (hasData(db) || (remote && !remote.products)) push();
+  else if (!remote) push();
+  else setS('saved');
+}
+async function startUser(u, shopName) {
+  user = u;
+  try { db = normalize(JSON.parse(localStorage.getItem(userKey()))); } catch (e) { db = emptyDB(); }
+  // Données créées avant les comptes sur ce téléphone : le premier compte connecté les reprend.
+  if (!hasData(db)) {
+    try { const old = JSON.parse(localStorage.getItem(KEY)); if (old && old.products && hasData(normalize(old))) { db = normalize(old); db.savedAt = 1; localStorage.setItem(userKey(), JSON.stringify(db)); localStorage.removeItem(KEY); } } catch (e) {}
+  }
+  hideAuth(); render();
+  await pull();
+  const name = shopName || (u.user_metadata && u.user_metadata.shop_name);
+  if (name && (!db.settings.shopName || db.settings.shopName === 'Mon Magasin PC')) { db.settings.shopName = name; save(); render(); }
 }
 function setS(s) { sState = s; updateStatus(); }
 function updateStatus() {
-  const m = {saved:['ok','Enregistré'], error:['err','Non enregistré']}[sState] || ['', ''];
+  const m = {saved:['ok','Enregistré'], saving:['busy','Enregistrement...'], offline:['busy','Hors ligne'], error:['err','Non enregistré']}[sState] || ['', ''];
   $('#saveStatus').innerHTML = `<span class="dot ${m[0]}"></span>${esc(tr(m[1]))}`;
   $('#brandName').textContent = db.settings.shopName || 'Magasin PC';
 }
@@ -573,6 +639,7 @@ function render() {
   $('#view').innerHTML = (views[current] || views.dashboard)();
   translate($('#tabs')); translate($('#view'));
   $('#langBtn').textContent = LANG === 'ar' ? 'FR' : 'ع';
+  if (!$('#auth').hidden) showAuth();
   labelTables($('#view'));
   updateStatus();
 }
@@ -624,7 +691,7 @@ views.dashboard = () => {
   const su = db.suppliers.map(s => ({s, b:supplierBalance(s.id)})).filter(x => x.b > 0.009).sort((a, b) => b.b - a.b);
   const low = db.products.filter(p => p.qty <= num(p.minQty) && (p.qty > 0 || num(p.minQty) > 0));
   const last = db.settings.lastExport, old = !last || (Date.now() - new Date(last).getTime()) > 7 * 864e5;
-  const banner = hasData(db) && old ? `<div class="banner">Vos données sont seulement dans ce téléphone. Faites une copie de sauvegarde chaque semaine. <button class="btn sm" onclick="exportJSON()">Faire une copie</button></div>` : '';
+  const banner = hasData(db) && old && !user ?`<div class="banner">Vos données sont seulement dans ce téléphone. Faites une copie de sauvegarde chaque semaine. <button class="btn sm" onclick="exportJSON()">Faire une copie</button></div>` : '';
   const welcome = !hasData(db) ? `<div class="card"><h2>Bienvenue 👋</h2><p class="note" style="margin:0">${L('Commencez par <b>Paramètres</b> (nom du magasin), puis ajoutez un <b>achat</b> : les produits entrent en stock, ensuite vous pouvez faire des <b>ventes</b>.', 'بدا بـ <b>الإعدادات</b> (سمية المحل)، من بعد زيد <b>شرا</b>: السلعة كتدخل للمخزون، ومن بعد تقدر دير <b>المبيعات</b>.')}</p></div>` : '';
   const amtN = n => (Number(n) || 0).toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const chev = '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>';
@@ -1071,6 +1138,7 @@ views.settings = () => {
   const s = db.settings;
   return `<h1>Paramètres</h1>
   <div class="card"><h2>Langue / اللغة</h2>${langSwitch()}</div>
+  ${user ? `<div class="card"><h2>Mon compte</h2><p class="note" style="direction:ltr;text-align:start">${esc(user.email)}</p><button class="btn sec" onclick="logout()">${L('Se déconnecter', 'خروج')}</button></div>` : ''}
   <div class="card"><h2>Magasin (sur les factures)</h2><div class="form">
     <div><label for="s_name">Nom du magasin</label><input id="s_name" value="${esc(s.shopName)}"></div>
     <div><label for="s_phone">Téléphone</label><input id="s_phone" type="tel" value="${esc(s.phone)}"></div>
@@ -1079,7 +1147,7 @@ views.settings = () => {
     <div class="full"><label for="s_footer">Message en bas de facture</label><input id="s_footer" value="${esc(s.footer)}" placeholder="Garantie 3 mois..."></div>
   </div><div class="mfoot"><button class="btn" onclick="saveSettings()">Enregistrer</button></div></div>
   <div class="card"><h2>Sauvegarde</h2>
-    <p class="note">Vos données sont enregistrées automatiquement dans ce téléphone. Si l'application est supprimée, elles sont perdues : faites une copie chaque semaine (envoyez-la sur WhatsApp, iCloud ou par e-mail).</p>
+    <p class="note">${user ? L('Vos données sont enregistrées automatiquement en ligne dans votre compte. Une copie de temps en temps reste une bonne idée.', 'البيانات ديالك كتسجل أوتوماتيكيا أونلاين فالحساب ديالك. نسخة من وقت لوقت مزيانة حتى هي.') : "Vos données sont enregistrées automatiquement dans ce téléphone. Si l'application est supprimée, elles sont perdues : faites une copie chaque semaine (envoyez-la sur WhatsApp, iCloud ou par e-mail)."}</p>
     <p class="note">Dernière copie : ${s.lastExport ? fdate(s.lastExport) : 'jamais'}</p>
     <div class="toolbar"><button class="btn sec" onclick="exportJSON()">Télécharger une copie</button><button class="btn sec" onclick="$('#importInput').click()">Restaurer une copie</button></div>
     <p class="note" style="margin:0">Une copie faite sur le PC (fichier .json) peut aussi être restaurée ici.</p></div>
@@ -1112,10 +1180,96 @@ async function resetAll() {
   db = emptyDB(); save(); render(); toast('Données effacées');
 }
 
+/* ================== CONNEXION / CRÉATION DE COMPTE ================== */
+let authMode = 'login';
+function showAuth(mode) {
+  authMode = mode || authMode; const a = $('#auth'), isS = authMode === 'signup';
+  a.hidden = false;
+  a.innerHTML = `<div class="authbox">
+    <div class="alogo">${IC.pc}</div>
+    <h1>${isS ? L('Créer un compte', 'إنشاء حساب') : L('Connexion', 'تسجيل الدخول')}</h1>
+    <p class="note">${isS ? L('Créez votre compte : vos données restent en ligne et vous les retrouvez sur tous vos appareils.', 'دير حساب: البيانات ديالك كتبقى محفوظة أونلاين وكتلقاها فكاع الأجهزة ديالك.') : L('Entrez votre e-mail et votre mot de passe.', 'دخل الإيميل والمودباس ديالك.')}</p>
+    <button type="button" class="gbtn" onclick="googleLogin()"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>${L('Continuer avec Google', 'كمل بـ Google')}</button>
+    <div class="or"><span>${L('ou avec votre e-mail', 'ولا بالإيميل')}</span></div>
+    <div class="seg"><button type="button" class="${isS ? '' : 'on'}" onclick="showAuth('login')">${L('Connexion', 'الدخول')}</button><button type="button" class="${isS ? 'on' : ''}" onclick="showAuth('signup')">${L('Créer un compte', 'حساب جديد')}</button></div>
+    <form id="authForm" onsubmit="event.preventDefault(); authSubmit();">
+      ${isS ? `<label class="l" for="a_shop">${L('Nom du magasin', 'سمية المحل')}</label><input id="a_shop" autocomplete="organization">` : ''}
+      <label class="l" for="a_email">${L('E-mail', 'الإيميل')}</label><input id="a_email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" required>
+      <label class="l" for="a_pass">${L('Mot de passe', 'المودباس')}</label><input id="a_pass" type="password" autocomplete="${isS ? 'new-password' : 'current-password'}" minlength="6" required>
+      ${isS ? `<label class="l" for="a_pass2">${L('Confirmer le mot de passe', 'عاود المودباس')}</label><input id="a_pass2" type="password" autocomplete="new-password" minlength="6" required>` : ''}
+      <p id="authMsg" class="amsg" hidden></p>
+      <button class="btn block" id="authBtn" type="submit">${isS ? L('Créer mon compte', 'دير الحساب') : L('Se connecter', 'دخل')}</button>
+    </form>
+    ${isS ? '' : `<button type="button" class="linkbtn" onclick="forgotPass()">${L('Mot de passe oublié ?', 'نسيتي المودباس؟')}</button>`}
+    <button type="button" class="linkbtn" onclick="setLang(LANG === 'ar' ? 'fr' : 'ar')">${LANG === 'ar' ? 'Français' : 'العربية'}</button>
+  </div>`;
+}
+function hideAuth() { $('#auth').hidden = true; $('#auth').innerHTML = ''; }
+function authMsg(t, ok) { const m = $('#authMsg'); if (!m) return; m.hidden = false; m.textContent = t; m.className = 'amsg' + (ok ? ' ok' : ''); }
+function authErr(e) {
+  const s = String((e && e.message) || '').toLowerCase();
+  if (s.includes('invalid login')) return L('E-mail ou mot de passe incorrect.', 'الإيميل ولا المودباس غالط.');
+  if (s.includes('already')) return L('Ce compte existe déjà. Connectez-vous.', 'هاد الحساب كاين ديجا. دخل.');
+  if (s.includes('not confirmed')) return L("Confirmez d'abord votre e-mail (regardez votre boîte de réception).", 'أكد الإيميل ديالك قبل (شوف البريد ديالك).');
+  if (s.includes('rate limit') || s.includes('security purposes')) return L('Trop de tentatives. Réessayez dans quelques minutes.', 'بزاف ديال المحاولات. عاود من بعد شوية.');
+  if (s.includes('password')) return L('Mot de passe trop court (6 caractères minimum).', 'المودباس قصير بزاف (6 حروف على الأقل).');
+  if (s.includes('fetch') || s.includes('network')) return L('Pas de connexion internet.', 'ما كاينش الأنترنيت.');
+  if (s.includes('email')) return L('Adresse e-mail invalide.', 'الإيميل ماشي صحيح.');
+  return (e && e.message) || 'Erreur';
+}
+async function authSubmit() {
+  const email = val('a_email').toLowerCase(), pass = $('#a_pass').value, btn = $('#authBtn');
+  if (!email || !pass) return;
+  btn.disabled = true;
+  try {
+    if (authMode === 'signup') {
+      if (pass !== $('#a_pass2').value) return authMsg(L('Les deux mots de passe ne sont pas identiques.', 'جوج المودباسات ماشي بحال بحال.'));
+      const shop = val('a_shop');
+      const {data, error} = await sb.auth.signUp({email, password: pass, options: {emailRedirectTo: location.origin + location.pathname, data: {shop_name: shop}}});
+      if (error) throw error;
+      if (data.session) await startUser(data.user, shop);
+      else authMsg(L('Compte créé ✅ Ouvrez le lien envoyé à votre e-mail pour le confirmer, puis connectez-vous.', 'تدار الحساب ✅ حل الرابط اللي تصيفط للإيميل ديالك باش تأكدو، ومن بعد دخل.'), true);
+    } else {
+      const {data, error} = await sb.auth.signInWithPassword({email, password: pass});
+      if (error) throw error;
+      await startUser(data.user);
+    }
+  } catch (e) { authMsg(authErr(e)); }
+  finally { if ($('#authBtn')) $('#authBtn').disabled = false; }
+}
+async function googleLogin() {
+  const {error} = await sb.auth.signInWithOAuth({provider: 'google', options: {redirectTo: location.origin + location.pathname}});
+  if (error) authMsg(error.message && error.message.toLowerCase().includes('provider is not enabled') ? L("La connexion Google n'est pas encore activée.", 'الدخول بـ Google ما زال ما تفعلش.') : authErr(error));
+}
+async function forgotPass() {
+  const email = val('a_email').toLowerCase();
+  if (!email) return authMsg(L("Écrivez d'abord votre e-mail.", 'كتب الإيميل ديالك قبل.'));
+  const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname});
+  authMsg(error ? authErr(error) : L('Un e-mail pour changer le mot de passe vous a été envoyé.', 'تصيفط ليك إيميل باش تبدل المودباس.'), !error);
+}
+async function logout() {
+  if (!await uiConfirm(L('Se déconnecter de ce compte ?', 'تخرج من هاد الحساب؟'), L('Se déconnecter', 'خروج'))) return;
+  if (pushTimer) { clearTimeout(pushTimer); await push(); }
+  await sb.auth.signOut(); user = null; db = emptyDB(); render(); showAuth('login');
+}
+async function initAuth() {
+  if (!sb) { loadCache(); render(); return; } // projet en ligne pas encore configuré : mode téléphone seul
+  sb.auth.onAuthStateChange(async (ev) => {
+    if (ev === 'PASSWORD_RECOVERY') {
+      const p = await uiPrompt(L('Nouveau mot de passe (6 caractères minimum)', 'مودباس جديد (6 حروف على الأقل)'), '');
+      if (p) { const {error} = await sb.auth.updateUser({password: p}); uiAlert(error ? authErr(error) : L('Mot de passe changé ✅', 'تبدل المودباس ✅')); }
+    }
+  });
+  let session = null;
+  try { session = (await sb.auth.getSession()).data.session; } catch (e) {}
+  if (session) await startUser(session.user); else showAuth('login');
+}
+
 /* ================== DÉMARRAGE ================== */
 if (/\.netlify\.app$/.test(location.hostname)) document.documentElement.classList.add('has-badge');
-loadCache();
+db = emptyDB();
 render();
+initAuth();
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('sw.js').then(reg => {
