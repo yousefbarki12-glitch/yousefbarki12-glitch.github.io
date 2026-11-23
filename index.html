@@ -260,6 +260,24 @@ nav.tabs button.on::after{content:"";position:absolute;top:6px;width:28px;height
   --bg:#0f131b; --panel:#181e2a; --panel2:#1f2635; --fg:#eef1f7; --muted:#9aa3b8; --line:#2a3242;
   --accent:#93a6d0; --accent-2:#2fd6a8; --accent-fg:#0f131b; --accent-soft:#232c40; --hero-1:#43557f; --hero-2:#28344f;
   --good:#34d3a4; --good-soft:#12302a}
+.brandbtn{display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:none;border:0;padding:4px 6px 4px 0;margin:-4px 0;color:inherit;font:inherit;cursor:pointer;text-align:start;border-radius:12px}
+.brandbtn:active{background:var(--panel2)}
+.brandchev{color:var(--muted);flex-shrink:0}
+.acc-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:8px 0 16px}
+.acc-av{width:76px;height:76px;border-radius:50%;object-fit:cover;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:30px;font-weight:800;box-shadow:0 0 0 4px var(--panel),0 0 0 6px var(--accent-2)}
+.acc-name{font-size:20px;font-weight:800}
+.acc-mail{color:var(--muted);font-size:14px;direction:ltr}
+.acc-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.acc-list{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+.acc-row{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;font-size:15px}
+.acc-row+.acc-row{border-top:1px solid var(--line)}
+.acc-row span:first-child{color:var(--muted)}
+.acc-row span:last-child{font-weight:600;text-align:end;min-width:0;overflow-wrap:anywhere}
+.acc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.acc-stats div{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:10px;text-align:center}
+.acc-stats b{display:block;font-size:20px}
+.acc-stats span{font-size:12px;color:var(--muted)}
+.acc-actions{display:grid;gap:8px}
 header.top .brandmark{width:30px;height:30px;border-radius:9px;background:#fff;box-shadow:var(--shadow);object-fit:contain;flex-shrink:0}
 header.top .shop{color:var(--fg);font-weight:700}
 /* Carte du haut : arc vert comme sur le logo */
@@ -315,7 +333,7 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 </head>
 <body>
 
-<header class="top"><img class="brandmark" src="logo-mark.png" alt=""><span class="shop" id="brandName">Magasin PC</span><span id="saveStatus"></span><button class="btn sm sec" id="langBtn" onclick="setLang(LANG === 'ar' ? 'fr' : 'ar')" aria-label="Langue / اللغة">ع</button></header>
+<header class="top"><button class="brandbtn" onclick="showAccount()" aria-label="Mon compte"><img class="brandmark" src="logo-mark.png" alt=""><span class="shop" id="brandName">Magasin PC</span><svg class="brandchev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button><span id="saveStatus"></span><button class="btn sm sec" id="langBtn" onclick="setLang(LANG === 'ar' ? 'fr' : 'ar')" aria-label="Langue / اللغة">ع</button></header>
 <main id="view"></main>
 <nav class="tabs" id="tabs"></nav>
 
@@ -1290,6 +1308,54 @@ async function forgotPass() {
   if (!email) return authMsg(L("Écrivez d'abord votre e-mail.", 'كتب الإيميل ديالك قبل.'));
   const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname});
   authMsg(error ? authErr(error) : L('Un e-mail pour changer le mot de passe vous a été envoyé.', 'تصيفط ليك إيميل باش تبدل المودباس.'), !error);
+}
+/* ---------- Fenêtre « Mon compte » (clic sur le nom du magasin) ---------- */
+function showAccount() {
+  const st = db.settings, md = (user && user.user_metadata) || {};
+  const provider = user && user.app_metadata ? (user.app_metadata.provider || 'email') : null;
+  const name = md.full_name || md.name || st.shopName || '';
+  const avatar = md.avatar_url || md.picture;
+  const initial = esc((String(name || (user && user.email) || '?').trim()[0] || '?').toUpperCase());
+  const since = user && user.created_at ? fdate(user.created_at.slice(0, 10)) : '';
+  const row = (k, v) => v ? `<div class="acc-row"><span>${k}</span><span>${v}</span></div>` : '';
+  const head = user ? `
+    <div class="acc-head">
+      ${avatar ? `<img class="acc-av" src="${esc(avatar)}" alt="" referrerpolicy="no-referrer">` : `<div class="acc-av">${initial}</div>`}
+      <div class="acc-name">${esc(name)}</div>
+      <div class="acc-mail">${esc(user.email || '')}</div>
+      <span class="acc-badge">${provider === 'google' ? L('Connecté avec Google', 'داخل بـ Google') : L('Connecté avec e-mail', 'داخل بالإيميل')}</span>
+    </div>` : `<div class="acc-head"><div class="acc-av">${initial}</div><div class="acc-name">${esc(st.shopName || '')}</div><span class="acc-badge">${L('Sans compte (données dans ce téléphone)', 'بلا حساب (البيانات فهاد التيليفون)')}</span></div>`;
+  openModal(L('Mon compte', 'الحساب ديالي'), `${head}
+    <div class="acc-stats">
+      <div><b>${db.products.length}</b><span>${L('Produits', 'منتوجات')}</span></div>
+      <div><b>${db.clients.length}</b><span>${L('Clients', 'زبناء')}</span></div>
+      <div><b>${db.sales.length}</b><span>${L('Ventes', 'مبيعات')}</span></div>
+    </div>
+    <h2>${L('Magasin', 'المحل')}</h2>
+    <div class="acc-list">
+      ${row(L('Nom', 'السمية'), esc(st.shopName))}
+      ${row(L('Téléphone', 'التيليفون'), esc(st.phone))}
+      ${row(L('Adresse', 'العنوان'), esc(st.address))}
+      ${row('ICE / RC', esc(st.ice))}
+      ${!st.phone && !st.address ? `<div class="acc-row"><span>${L('Complétez les informations du magasin dans les paramètres.', 'كمل المعلومات ديال المحل فالإعدادات.')}</span><span></span></div>` : ''}
+    </div>
+    ${user ? `<h2>${L('Compte', 'الحساب')}</h2><div class="acc-list">
+      ${row(L('E-mail', 'الإيميل'), `<span style="direction:ltr;display:inline-block">${esc(user.email || '')}</span>`)}
+      ${row(L('Connexion', 'الدخول'), provider === 'google' ? 'Google' : L('E-mail + mot de passe', 'إيميل + مودباس'))}
+      ${row(L('Membre depuis', 'عضو من'), since)}
+    </div>` : ''}
+    <div class="acc-actions">
+      <button class="btn" onclick="go('settings')">${L('Modifier les informations', 'بدل المعلومات')}</button>
+      ${user && provider !== 'google' ? `<button class="btn sec" onclick="changePassword()">${L('Changer le mot de passe', 'بدل المودباس')}</button>` : ''}
+      ${user ? `<button class="btn sec" style="color:var(--bad)" onclick="logout()">${L('Se déconnecter', 'خروج')}</button>` : ''}
+    </div>`);
+}
+async function changePassword() {
+  const p = await uiPrompt(L('Nouveau mot de passe (6 caractères minimum)', 'مودباس جديد (6 حروف على الأقل)'), '');
+  if (!p) return;
+  if (p.length < 6) return uiAlert(L('Mot de passe trop court (6 caractères minimum).', 'المودباس قصير بزاف (6 حروف على الأقل).'));
+  const {error} = await sb.auth.updateUser({password: p});
+  uiAlert(error ? authErr(error) : L('Mot de passe changé ✅', 'تبدل المودباس ✅'));
 }
 async function logout() {
   if (!await uiConfirm(L('Se déconnecter de ce compte ?', 'تخرج من هاد الحساب؟'), L('Se déconnecter', 'خروج'))) return;
