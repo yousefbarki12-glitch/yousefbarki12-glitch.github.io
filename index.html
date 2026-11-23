@@ -558,12 +558,13 @@ const NUM = 'type="number" inputmode="decimal" step="0.01"';
 
 /* ================== DIALOGUES (remplacent alert/confirm/prompt) ================== */
 let dlgResolve = null;
-function dialog({msg, input = false, ph = '', ok = 'OK', cancel = 'Annuler', danger = false}) {
+function dialog({msg, input = false, ph = '', ok = 'OK', cancel = 'Annuler', danger = false, secret = false}) {
   return new Promise(res => {
     if (dlgResolve) dlgResolve({ok:false});
     dlgResolve = res;
     $('#dmsg').textContent = tr(msg); ok = tr(ok); cancel = cancel && tr(cancel);
     const inp = $('#dinput'); inp.hidden = !input; inp.value = ''; inp.placeholder = ph;
+    inp.type = secret ? 'password' : 'text'; inp.autocomplete = secret ? 'new-password' : 'off';
     $('#dok').textContent = ok; $('#dok').className = 'btn' + (danger ? ' red' : '');
     $('#dcancel').hidden = !cancel; $('#dcancel').textContent = cancel || '';
     $('#dlg').hidden = false;
@@ -576,7 +577,7 @@ $('#dcancel').onclick = () => closeDlg(false);
 $('#dinput').addEventListener('keydown', e => { if (e.key === 'Enter') closeDlg(true); });
 const uiAlert = msg => { dialog({msg, cancel:null}); };
 const uiConfirm = (msg, ok = 'Confirmer', danger = false) => dialog({msg, ok, danger}).then(r => r.ok);
-const uiPrompt = (msg, ph) => dialog({msg, input:true, ph}).then(r => r.ok ? r.value : null);
+const uiPrompt = (msg, ph, secret) => dialog({msg, input:true, ph, secret}).then(r => r.ok ? r.value : null);
 let toastT;
 function toast(msg) { const t = $('#toast'); t.textContent = tr(msg); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
 
@@ -1346,16 +1347,21 @@ function showAccount() {
     </div>` : ''}
     <div class="acc-actions">
       <button class="btn" onclick="go('settings')">${L('Modifier les informations', 'بدل المعلومات')}</button>
-      ${user && provider !== 'google' ? `<button class="btn sec" onclick="changePassword()">${L('Changer le mot de passe', 'بدل المودباس')}</button>` : ''}
+      ${user ? `<button class="btn sec" onclick="changePassword(${provider === 'google'})">${provider === 'google' ? L('Créer un mot de passe', 'دير مودباس') : L('Changer le mot de passe', 'بدل المودباس')}</button>` : ''}
+      ${user && provider === 'google' ? `<p class="note" style="margin:0;text-align:center">${L("Avec un mot de passe, vous pourrez aussi vous connecter avec votre e-mail (sans Google).", 'بالمودباس تقدر تدخل حتى بالإيميل ديالك (بلا Google).')}</p>` : ''}
       ${user ? `<button class="btn sec" style="color:var(--bad)" onclick="logout()">${L('Se déconnecter', 'خروج')}</button>` : ''}
     </div>`);
 }
-async function changePassword() {
-  const p = await uiPrompt(L('Nouveau mot de passe (6 caractères minimum)', 'مودباس جديد (6 حروف على الأقل)'), '');
+async function changePassword(isNew) {
+  const p = await uiPrompt(isNew ? L('Choisissez un mot de passe (6 caractères minimum)', 'اختار مودباس (6 حروف على الأقل)') : L('Nouveau mot de passe (6 caractères minimum)', 'مودباس جديد (6 حروف على الأقل)'), '', true);
   if (!p) return;
   if (p.length < 6) return uiAlert(L('Mot de passe trop court (6 caractères minimum).', 'المودباس قصير بزاف (6 حروف على الأقل).'));
+  const p2 = await uiPrompt(L('Retapez le mot de passe', 'عاود كتب المودباس'), '', true);
+  if (p2 === null) return;
+  if (p2 !== p) return uiAlert(L('Les deux mots de passe ne sont pas identiques.', 'جوج المودباسات ماشي بحال بحال.'));
   const {error} = await sb.auth.updateUser({password: p});
-  uiAlert(error ? authErr(error) : L('Mot de passe changé ✅', 'تبدل المودباس ✅'));
+  if (error) return uiAlert(authErr(error));
+  uiAlert(isNew ? L(`Mot de passe créé ✅\nVous pouvez maintenant vous connecter avec ${user.email} et ce mot de passe, ou toujours avec Google.`, `تدار المودباس ✅\nدابا تقدر تدخل بـ ${user.email} وهاد المودباس، ولا ديما بـ Google.`) : L('Mot de passe changé ✅', 'تبدل المودباس ✅'));
 }
 async function logout() {
   if (!await uiConfirm(L('Se déconnecter de ce compte ?', 'تخرج من هاد الحساب؟'), L('Se déconnecter', 'خروج'))) return;
@@ -1367,7 +1373,7 @@ async function initAuth() {
   checkProviders();
   sb.auth.onAuthStateChange(async (ev) => {
     if (ev === 'PASSWORD_RECOVERY') {
-      const p = await uiPrompt(L('Nouveau mot de passe (6 caractères minimum)', 'مودباس جديد (6 حروف على الأقل)'), '');
+      const p = await uiPrompt(L('Nouveau mot de passe (6 caractères minimum)', 'مودباس جديد (6 حروف على الأقل)'), '', true);
       if (p) { const {error} = await sb.auth.updateUser({password: p}); uiAlert(error ? authErr(error) : L('Mot de passe changé ✅', 'تبدل المودباس ✅')); }
     }
   });
