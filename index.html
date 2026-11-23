@@ -1269,9 +1269,14 @@ async function initAuth() {
       if (p) { const {error} = await sb.auth.updateUser({password: p}); uiAlert(error ? authErr(error) : L('Mot de passe changé ✅', 'تبدل المودباس ✅')); }
     }
   });
+  // Erreur renvoyée par Google/Supabase dans l'adresse (ex. connexion Google refusée)
+  const qs = new URLSearchParams(location.search + '&' + location.hash.replace(/^#/, ''));
+  const oauthErr = qs.get('error_description') || qs.get('error');
+  if (oauthErr) history.replaceState(null, '', location.pathname);
   let session = null;
   try { session = (await sb.auth.getSession()).data.session; } catch (e) {}
-  if (session) await startUser(session.user); else showAuth('login');
+  if (session) await startUser(session.user);
+  else { showAuth('login'); if (oauthErr) authMsg(L('La connexion Google a échoué. Réessayez ou utilisez votre e-mail.', 'الدخول بـ Google ما خدمش. عاود ولا دخل بالإيميل.') + ' (' + oauthErr + ')'); }
 }
 
 /* ================== DÉMARRAGE ================== */
