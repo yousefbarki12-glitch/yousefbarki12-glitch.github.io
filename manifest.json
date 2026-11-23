@@ -1,12 +1,12 @@
 {
-  "name": "Magasin PC – Vente & Achat",
-  "short_name": "Magasin PC",
+  "name": "YourTechno – Vente & Achat",
+  "short_name": "YourTechno",
   "id": "/",
   "start_url": "/",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f3f5f9",
-  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "theme_color": "#556C96",
   "lang": "fr",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
