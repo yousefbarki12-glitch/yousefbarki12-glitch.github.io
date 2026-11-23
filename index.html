@@ -632,7 +632,8 @@ views.dashboard = () => {
   const li = (cls, a, t, s, amt, amtCls, onclick) => `<button class="li" onclick="${onclick}"><span class="av ${cls}">${a}</span><span class="mid"><div class="t">${t}</div><div class="s">${s}</div></span><span class="amt ${amtCls}">${amt}</span>${chev}</button>`;
   const list = (rows, emptyMsg) => `<div class="list">${rows.length ? rows.join('') : `<div class="empty">${emptyMsg}</div>`}</div>`;
   const sect = (title, link) => `<div class="sect"><h2>${title}</h2>${link ? `<a onclick="go('${link}')">${L('Tout voir', 'شوف الكل')}</a>` : ''}</div>`;
-  return `${banner}${welcome}
+  const moved = /\.netlify\.app$/.test(location.hostname) ? `<div class="banner" style="background:var(--accent-soft);color:var(--fg)"><div>${L("L'application a une nouvelle adresse, sans la publicité Netlify :", 'التطبيق عندو رابط جديد، بلا الإشهار ديال Netlify :')}<br><b style="user-select:all">yousefbarki12-glitch.github.io</b><br>${L("Si vous avez déjà des données ici : faites une copie, puis restaurez-la dans la nouvelle adresse (Paramètres).", 'إلا عندك بيانات هنا: دير نسخة، ورجعها فالرابط الجديد (الإعدادات).')}</div><button class="btn sm" onclick="exportJSON()">${L('Faire une copie', 'دير نسخة')}</button></div>` : '';
+  return `${moved}${banner}${welcome}
   <div class="hero">
     <div class="hl">${L("Ventes aujourd'hui", 'مبيعات اليوم')} · ${sT.length} ${L('vente(s)', 'بيعة')}</div>
     <div class="hv">${amtN(sum(sT, s => s.total))} <small>${L('DH', 'درهم')}</small></div>
