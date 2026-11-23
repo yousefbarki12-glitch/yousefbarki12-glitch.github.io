@@ -692,7 +692,8 @@ views.dashboard = () => {
   const low = db.products.filter(p => p.qty <= num(p.minQty) && (p.qty > 0 || num(p.minQty) > 0));
   const last = db.settings.lastExport, old = !last || (Date.now() - new Date(last).getTime()) > 7 * 864e5;
   const banner = hasData(db) && old && !user ?`<div class="banner">Vos données sont seulement dans ce téléphone. Faites une copie de sauvegarde chaque semaine. <button class="btn sm" onclick="exportJSON()">Faire une copie</button></div>` : '';
-  const welcome = !hasData(db) ? `<div class="card"><h2>Bienvenue 👋</h2><p class="note" style="margin:0">${L('Commencez par <b>Paramètres</b> (nom du magasin), puis ajoutez un <b>achat</b> : les produits entrent en stock, ensuite vous pouvez faire des <b>ventes</b>.', 'بدا بـ <b>الإعدادات</b> (سمية المحل)، من بعد زيد <b>شرا</b>: السلعة كتدخل للمخزون، ومن بعد تقدر دير <b>المبيعات</b>.')}</p></div>` : '';
+  const namedShop = db.settings.shopName && db.settings.shopName !== 'Mon Magasin PC';
+  const welcome = !hasData(db) && !namedShop ?`<div class="card"><h2>Bienvenue 👋</h2><p class="note" style="margin:0">${L('Commencez par <b>Paramètres</b> (nom du magasin), puis ajoutez un <b>achat</b> : les produits entrent en stock, ensuite vous pouvez faire des <b>ventes</b>.', 'بدا بـ <b>الإعدادات</b> (سمية المحل)، من بعد زيد <b>شرا</b>: السلعة كتدخل للمخزون، ومن بعد تقدر دير <b>المبيعات</b>.')}</p></div>` : '';
   const amtN = n => (Number(n) || 0).toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const chev = '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>';
   const ini = s => esc((String(s || '?').trim()[0] || '?').toUpperCase());
