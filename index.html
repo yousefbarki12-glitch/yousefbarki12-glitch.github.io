@@ -814,7 +814,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '26'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '27'; // à changer avec CACHE dans sw.js
 const NUM = 'type="number" inputmode="decimal" step="0.01"';
 /* Champs numériques : un 0 n'est pas écrit (le 0 gris du placeholder suffit) ; les quantités valent 1 par défaut */
 function blankZeros(root) {
@@ -941,7 +941,7 @@ function supplierBalance(id) {
 const balance = (type, id) => type === 'client' ? clientBalance(id) : supplierBalance(id);
 const saleProfit = s => sum(s.items, i => (i.price - i.cost) * i.qty) - num(s.discount);
 /* Bénéfice encaissé : le bénéfice d'une vente ne compte que sur l'argent reçu.
-   Client à 100 % crédit = 0 de bénéfice ; s'il paie la moitié, la moitié du bénéfice compte, le jour où l'argent arrive.
+   Client à 100 % crédit = 0 de bénéfice ; dès qu'il paie quelque chose, tout le bénéfice de la vente compte (le jour du 1er paiement).
    Les paiements « Encaisser » d'un client remboursent d'abord son crédit d'avant, puis ses ventes les plus anciennes. */
 let _cash = null, _cashKey = '';
 function cashInfo() {
@@ -964,7 +964,7 @@ function cashInfo() {
   });
   _cash = info; _cashKey = key; return info;
 }
-const saleRatio = x => { const t = num(x.total); if (t <= 0) return 1; const i = cashInfo().get(x.id); return i ? Math.min(1, i.paid / t) : Math.min(1, num(x.paid) / t); };
+const saleRatio = x => { if (num(x.total) <= 0) return 1; const i = cashInfo().get(x.id); return (i ? i.paid : num(x.paid)) > 0.009 ? 1 : 0; };
 const saleEarned = x => r2(saleProfit(x) * saleRatio(x));
 // Reste à payer d'une vente, en comptant aussi les paiements faits après (Encaisser)
 const saleLeft = x => { const i = cashInfo().get(x.id); return r2(num(x.total) - (i ? i.paid : num(x.paid))); };
@@ -976,7 +976,8 @@ function earnedBetween(from, to) {
     const t = num(x.total), pr = saleProfit(x);
     if (t <= 0) { if (x.date >= from && x.date <= to) tot += pr; return; }
     const i = ci.get(x.id); if (!i) return;
-    i.ev.forEach(e => { if (e.date >= from && e.date <= to) tot += pr * e.amt / t; });
+    const first = i.ev.reduce((d, e) => !d || e.date < d ? e.date : d, ''); // le bénéfice entier compte le jour du 1er paiement
+    if (first && first >= from && first <= to) tot += pr;
   });
   return r2(tot);
 }
