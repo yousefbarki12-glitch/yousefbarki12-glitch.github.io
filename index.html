@@ -165,7 +165,7 @@ label.l,.form label{display:block;font-size:12px;color:var(--muted);margin-botto
   --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35)}
 body{font-size:16px;letter-spacing:-.01em}
 body::before{background:var(--bg)}
-header.top{background:color-mix(in srgb,var(--bg) 85%,transparent);-webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);border-bottom:0;padding-block:12px}
+header.top{background:var(--bg);border-bottom:0;padding-block:12px}
 header.top .shop{font-size:15px;font-weight:600;color:var(--muted)}
 #langBtn{border-radius:99px;min-width:40px;min-height:34px;font-weight:700;background:var(--panel);box-shadow:var(--shadow);border:0}
 h1{font-size:30px;font-weight:800;letter-spacing:-.03em;margin:4px 0 16px}
@@ -183,7 +183,7 @@ input:focus,select:focus,textarea:focus{outline:0;box-shadow:inset 0 0 0 2px var
 .note{font-size:14px}
 .banner{border-radius:14px;font-size:14px}
 /* Barre d'onglets */
-nav.tabs{background:color-mix(in srgb,var(--panel) 82%,transparent);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:1px solid var(--line)}
+nav.tabs{background:var(--panel);border-top:1px solid var(--line)}
 nav.tabs button{font-size:10.5px;font-weight:600;position:relative}
 nav.tabs button.on svg{stroke-width:2.4}
 nav.tabs button.on::after{content:"";position:absolute;top:6px;width:28px;height:3px;border-radius:3px;background:var(--accent)}
@@ -359,6 +359,7 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 .ssum b{font:800 16px var(--f-head);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sday{margin:18px 4px 8px;font:700 13px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .slist{display:flex;flex-direction:column;margin-top:10px}
+.morebtn{margin:4px 0 8px;min-height:46px}
 .sday:first-child{margin-top:6px}
 .scard{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden;border-inline-start:4px solid var(--accent-2)}
 .scard.due{border-inline-start-color:var(--bad)}
@@ -796,7 +797,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '23'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '24'; // à changer avec CACHE dans sw.js
 const NUM = 'type="number" inputmode="decimal" step="0.01"';
 /* Champs numériques : un 0 n'est pas écrit (le 0 gris du placeholder suffit) ; les quantités valent 1 par défaut */
 function blankZeros(root) {
@@ -960,10 +961,20 @@ function labelTables(root) {
     t.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (!td.hasAttribute('data-label')) td.setAttribute('data-label', hs[i] || ''); if (i === 0) td.classList.add('first'); }));
   });
 }
+// Recherche : on attend une petite pause dans la frappe avant de redessiner la page (sinon l'app rame sur iPhone)
+let filterTimer = null;
+const limits = {}, PAGE = 50;
 function setFilter(k, v) {
-  filters[k] = v; render();
-  const el = document.getElementById('search'); if (el) { el.focus(); el.setSelectionRange(v.length, v.length); }
+  filters[k] = v; limits[k] = 0;
+  clearTimeout(filterTimer);
+  filterTimer = setTimeout(() => {
+    const old = document.getElementById('search'), pos = old ? old.selectionStart : null;
+    render();
+    const el = document.getElementById('search'); if (el) { el.focus(); try { const c = pos ?? el.value.length; el.setSelectionRange(c, c); } catch (e) {} }
+  }, 180);
 }
+function showMore(k) { limits[k] = (limits[k] || PAGE) + PAGE; render(); }
+const moreBtn = (k, total, shown) => total > shown ? `<button class="btn sec block morebtn" onclick="showMore('${k}')">${L('Afficher plus', 'بان كثر')} (${total - shown})</button>` : '';
 function searchBox(k, ph) { return `<input id="search" class="search" type="search" placeholder="${ph || 'Rechercher...'}" value="${esc(filters[k] || '')}" oninput="setFilter('${k}', this.value)">`; }
 /* Recherche : chaque mot doit être trouvé ; un nombre cherche aussi dans les prix (« 32 » trouve 3200, « 3 200 » et « 3200,00 » marchent) */
 const foldTxt = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -1049,8 +1060,8 @@ const STOCK_SORTS = [
   ['out', 'Seulement épuisés', 'غير اللي سالاو'], ['inStock', 'Seulement en stock', 'غير اللي كاينين'],
   ['sell', 'Prix de vente (plus grand)', 'ثمن البيع (الأكبر)'], ['margin', 'Marge (plus grande)', 'الربح (الأكبر)'], ['qty', 'Quantité (plus grande)', 'الكمية (الأكبر)']
 ];
-function setStockSort(v) { filters.stockSort = v; render(); }
-function setStockCat(c) { filters.stockCat = c; render(); }
+function setStockSort(v) { filters.stockSort = v; limits.stock = 0; render(); }
+function setStockCat(c) { filters.stockCat = c; limits.stock = 0; render(); }
 views.stock = () => {
   const cat = filters.stockCat || '', sort = filters.stockSort || 'name';
   const lvl = p => p.qty <= 0 ? 2 : p.qty <= num(p.minQty) ? 1 : 0;
@@ -1087,7 +1098,7 @@ views.stock = () => {
   <div class="ssum"><div><span>${L('Produits', 'المنتوجات')}</span><b>${list.length}</b></div><div><span>${L('Pièces', 'الحبات')}</span><b>${sum(list, p => Math.max(0, p.qty))}</b></div><div><span>${L("Valeur (achat)", 'القيمة (الشرا)')}</span><b>${fmt(sum(list, p => Math.max(0, p.qty) * p.buy))}</b></div><div><span>${L('Stock faible', 'قرب يسالي')}</span><b class="${lowN ? 'neg' : 'pos'}">${lowN}</b></div></div>
   ${cats.length > 1 ? `<div class="catchips">${['', ...cats].map(c => `<button type="button" class="chipbtn${c === cat ? ' on' : ''}" onclick="setStockCat(this.dataset.cat)" data-cat="${esc(c)}">${c ? esc(tr(c)) : L('Tous', 'الكل')}</button>`).join('')}</div>` : ''}
   ${sort !== 'name' ? `<p class="sortnote">${L('Tri', 'الترتيب')} : <b>${L(sortName[1], sortName[2])}</b> <button class="linkbtn" onclick="setStockSort('name')">${L('Annuler', 'رجّع')}</button></p>` : ''}
-  ${list.length ? `<div class="slist">${list.map(card).join('')}</div>` : `<div class="tablewrap"><div class="empty">${db.products.length ? L('Aucun produit trouvé', 'ما لقينا حتى منتوج') : L('Aucun produit. Ajoutez-en un ou enregistrez un achat.', 'ما كاين حتى منتوج. زيد واحد ولا سجل شرا.')}</div></div>`}`;
+  ${list.length ? `<div class="slist">${list.slice(0, limits.stock || PAGE).map(card).join('')}</div>${moreBtn('stock', list.length, Math.min(list.length, limits.stock || PAGE))}` : `<div class="tablewrap"><div class="empty">${db.products.length ? L('Aucun produit trouvé', 'ما لقينا حتى منتوج') : L('Aucun produit. Ajoutez-en un ou enregistrez un achat.', 'ما كاين حتى منتوج. زيد واحد ولا سجل شرا.')}</div></div>`}`;
 };
 function editProduct(id) {
   const p = id ? prod(id) : {name:'', category:'PC Portable', condition:'Occasion', qty:1, buy:0, sell:0, minQty:1};
@@ -1376,7 +1387,7 @@ const SALE_SORTS = [
   ['unpaid', "Non payées d'abord", 'اللي ما تخلصاتش الأولى'], ['unpaidOnly', "Seulement non payées", 'غير اللي ما تخلصاتش'],
   ['amount', "Montant (plus grand)", 'المبلغ (الأكبر)'], ['profit', "Bénéfice (plus grand)", 'الربح (الأكبر)']
 ];
-function setSaleSort(v) { filters.salesSort = v; render(); }
+function setSaleSort(v) { filters.salesSort = v; limits.sales = 0; render(); }
 function sortButton(cur, list, fn) {
   const on = cur && cur !== list[0][0];
   return `<label class="sortbtn${on ? ' on' : ''}" title="${L('Trier', 'رتّب')}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M6 12h12M10 18h4"/></svg><span class="sr">${L('Trier', 'رتّب')}</span>
@@ -1384,7 +1395,8 @@ function sortButton(cur, list, fn) {
 }
 views.sales = () => {
   const sort = filters.salesSort || 'recent', due = s => s.total - s.paid > 0.009;
-  let list = db.sales.map((s, i) => ({s, i})).filter(({s}) => match('sales', [s.num, client(s.clientId)?.name, s.items.map(i => i.name + ' ' + (i.serial || '')).join(' '), fdate(s.date)].join(' '), [s.total, s.paid, s.total - s.paid, ...s.items.map(i => i.price)]));
+  const cmap = new Map(db.clients.map(c => [c.id, c]));
+  let list = db.sales.map((s, i) => ({s, i})).filter(({s}) => match('sales', [s.num, cmap.get(s.clientId)?.name, s.items.map(i => i.name + ' ' + (i.serial || '')).join(' '), fdate(s.date)].join(' '), [s.total, s.paid, s.total - s.paid, ...s.items.map(i => i.price)]));
   if (sort === 'unpaidOnly') list = list.filter(({s}) => due(s));
   const byDate = (a, b) => b.s.date.localeCompare(a.s.date) || b.i - a.i;
   list.sort(sort === 'old' ? (a, b) => -byDate(a, b) : sort === 'unpaid' ? (a, b) => due(b.s) - due(a.s) || byDate(a, b) : sort === 'amount' ? (a, b) => b.s.total - a.s.total : sort === 'profit' ? (a, b) => saleProfit(b.s) - saleProfit(a.s) : byDate);
@@ -1394,7 +1406,7 @@ views.sales = () => {
   const total = sum(list, s => s.total), rest = sum(list, s => Math.max(0, s.total - s.paid)), profit = sum(list, saleProfit);
   const card = s => {
     const first = s.items[0] || {name: ''}, [title, ...spec] = String(first.name).split(' · ');
-    const more = s.items.length - 1, left = r2(s.total - s.paid), cl = client(s.clientId);
+    const more = s.items.length - 1, left = r2(s.total - s.paid), cl = cmap.get(s.clientId);
     return `<details class="scard${left > 0.009 ? ' due' : ''}">
       <summary class="scard-top"><span class="scard-title">${esc(title)}${first.qty > 1 ? ` <span class="scard-qty">×${first.qty}</span>` : ''}${more > 0 ? ` <span class="scard-qty">+${more}</span>` : ''}</span><b class="scard-total">${fmt(s.total)}</b><svg class="scard-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
       <div class="scard-body">
@@ -1414,12 +1426,13 @@ views.sales = () => {
   };
   const grouped = sort === 'recent' || sort === 'old';
   let html = '', last = null;
-  list.forEach(s => { if (grouped && s.date !== last) { last = s.date; html += `<h3 class="sday">${dayLabel(s.date)}</h3>`; } html += card(s); });
+  const shown = list.slice(0, limits.sales || PAGE);
+  shown.forEach(s => { if (grouped && s.date !== last) { last = s.date; html += `<h3 class="sday">${dayLabel(s.date)}</h3>`; } html += card(s); });
   const sortName = SALE_SORTS.find(x => x[0] === sort);
   return `<h1>Ventes</h1><div class="toolbar"><button class="btn green" onclick="newSale()">+ Vente</button><div class="searchrow">${searchBox('sales', L('Rechercher...', 'قلّب...'))}${sortButton(sort, SALE_SORTS, 'setSaleSort')}</div></div>
   <div class="ssum"><div><span>${L('Ventes', 'المبيعات')}</span><b>${list.length}</b></div><div><span>${L('Total', 'المجموع')}</span><b>${fmt(total)}</b></div><div><span>${L('Bénéfice', 'الربح')}</span><b class="pos">${fmt(profit)}</b></div>${rest > 0.009 ? `<div><span>${L('Crédit', 'الكريدي')}</span><b class="neg">${fmt(rest)}</b></div>` : ''}</div>
   ${sort !== 'recent' ? `<p class="sortnote">${L('Tri', 'الترتيب')} : <b>${L(sortName[1], sortName[2])}</b> <button class="linkbtn" onclick="setSaleSort('recent')">${L('Annuler', 'رجّع')}</button></p>` : ''}
-  ${list.length ? `<div class="slist">${html}</div>` : `<div class="tablewrap"><div class="empty">${sort === 'unpaidOnly' ? L('Toutes les ventes sont payées 👍', 'كاع المبيعات مخلصين 👍') : L('Aucune vente', 'ما كاين حتى بيع')}</div></div>`}`;
+  ${list.length ? `<div class="slist">${html}</div>${moreBtn('sales', list.length, shown.length)}` : `<div class="tablewrap"><div class="empty">${sort === 'unpaidOnly' ? L('Toutes les ventes sont payées 👍', 'كاع المبيعات مخلصين 👍') : L('Aucune vente', 'ما كاين حتى بيع')}</div></div>`}`;
 };
 function invoiceHTML(s) {
   const c = client(s.clientId), st = db.settings, rest = s.total - s.paid;
