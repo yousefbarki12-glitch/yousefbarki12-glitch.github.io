@@ -362,6 +362,12 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 .sday:first-child{margin-top:6px}
 .scard{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden;border-inline-start:4px solid var(--accent-2)}
 .scard.due{border-inline-start-color:var(--bad)}
+.scard.low{border-inline-start-color:var(--warn)}
+.spill.warn{background:var(--warn-soft);color:var(--warn)}
+.catchips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:10px -16px 0;padding:2px 16px}
+.catchips::-webkit-scrollbar{display:none}
+.catchips .chipbtn{background:var(--panel);box-shadow:var(--shadow)}
+.catchips .chipbtn.on{background:var(--accent);color:var(--accent-fg);box-shadow:none}
 .scard-top{display:flex;align-items:center;gap:10px;padding:14px;cursor:pointer;list-style:none;-webkit-tap-highlight-color:transparent}
 .scard-top::-webkit-details-marker{display:none}
 .scard-top:active{background:var(--panel2)}
@@ -790,7 +796,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '21'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '22'; // à changer avec CACHE dans sw.js
 const NUM = 'type="number" inputmode="decimal" step="0.01"';
 /* Champs numériques : un 0 n'est pas écrit (le 0 gris du placeholder suffit) ; les quantités valent 1 par défaut */
 function blankZeros(root) {
@@ -1033,19 +1039,50 @@ views.dashboard = () => {
 };
 
 /* ---------- STOCK ---------- */
+const STOCK_SORTS = [
+  ['name', 'Nom (A → Z)', 'السمية (أ → ي)'], ['low', "Stock faible d'abord", 'اللي قرب يسالي الأول'],
+  ['out', 'Seulement épuisés', 'غير اللي سالاو'], ['inStock', 'Seulement en stock', 'غير اللي كاينين'],
+  ['sell', 'Prix de vente (plus grand)', 'ثمن البيع (الأكبر)'], ['margin', 'Marge (plus grande)', 'الربح (الأكبر)'], ['qty', 'Quantité (plus grande)', 'الكمية (الأكبر)']
+];
+function setStockSort(v) { filters.stockSort = v; render(); }
+function setStockCat(c) { filters.stockCat = c; render(); }
 views.stock = () => {
-  const cat = filters.stockCat || '';
-  const list = db.products.filter(p => (!cat || p.category === cat) && match('stock', [p.name, p.cpu, p.ram, p.storage, p.category, p.condition, p.notes].join(' '))).sort((a, b) => a.name.localeCompare(b.name));
+  const cat = filters.stockCat || '', sort = filters.stockSort || 'name';
+  const lvl = p => p.qty <= 0 ? 2 : p.qty <= num(p.minQty) ? 1 : 0;
+  let list = db.products.filter(p => (!cat || p.category === cat) && match('stock', [p.name, p.cpu, p.ram, p.storage, p.category, p.condition, p.notes].join(' ')));
+  if (sort === 'out') list = list.filter(p => p.qty <= 0);
+  if (sort === 'inStock') list = list.filter(p => p.qty > 0);
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  list.sort(sort === 'low' ? (a, b) => lvl(b) - lvl(a) || a.qty - b.qty || byName(a, b)
+    : sort === 'sell' ? (a, b) => b.sell - a.sell : sort === 'margin' ? (a, b) => (b.sell - b.buy) - (a.sell - a.buy) : sort === 'qty' ? (a, b) => b.qty - a.qty : byName);
+  const cats = [...new Set(db.products.map(p => p.category).filter(Boolean))];
+  const lowN = db.products.filter(p => lvl(p) > 0).length;
+  const card = p => {
+    const l = lvl(p), specs = [p.cpu, p.ram, p.storage, p.screen, p.gpu].filter(Boolean).join(' · ');
+    return `<details class="scard ${['', 'low', 'due'][l]}">
+      <summary class="scard-top"><span class="scard-title">${esc(p.name)}</span><b class="scard-total">${fmt(p.sell)}</b><svg class="scard-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+      <div class="scard-body">
+        ${specs ? `<span class="scard-spec">${esc(specs)}</span>` : ''}
+        <dl class="scard-info">
+          <div><dt>${L('Quantité', 'الكمية')}</dt><dd><span class="spill ${['good', 'warn', 'bad'][l]}">${p.qty > 0 ? p.qty + ' ' + (p.qty > 1 ? L('pièces', 'حبات') : L('pièce', 'حبة')) : L('Épuisé', 'سالي')}</span></dd></div>
+          <div><dt>${L('État', 'الحالة')}</dt><dd>${esc(tr(p.condition || ''))}</dd></div>
+          <div><dt>${L("Prix d'achat", 'ثمن الشرا')}</dt><dd>${fmt(p.buy)}</dd></div>
+          <div><dt>${L('Prix de vente', 'ثمن البيع')}</dt><dd>${fmt(p.sell)}</dd></div>
+          <div><dt>${L('Marge', 'الربح')}</dt><dd class="${p.sell - p.buy >= 0 ? 'pos' : 'neg'}"><b>${fmt(p.sell - p.buy)}</b></dd></div>
+          <div><dt>${L('Catégorie', 'النوع')}</dt><dd>${esc(tr(p.category || ''))}</dd></div>
+          ${p.notes ? `<div style="grid-column:1/-1"><dt>${L('Notes', 'ملاحظات')}</dt><dd>${esc(p.notes)}</dd></div>` : ''}
+        </dl>
+        <div class="scard-actions"><button class="btn sm sec" onclick="productHistory('${p.id}')">${L('Historique', 'السجل')}</button><button class="btn sm sec" onclick="editProduct('${p.id}')">${L('Modifier', 'بدّل')}</button><button class="btn sm red" onclick="deleteProduct('${p.id}')" aria-label="${L('Supprimer', 'مسح')}">×</button></div>
+      </div>
+    </details>`;
+  };
+  const sortName = STOCK_SORTS.find(x => x[0] === sort);
   return `<h1>Stock</h1>
-  <div class="toolbar"><button class="btn" onclick="editProduct()">+ Produit</button>${searchBox('stock', 'Rechercher un produit...')}
-  <select id="stockCat" style="max-width:200px" onchange="filters.stockCat=this.value;render()"><option value="">Toutes catégories</option>${opts(CATS, cat)}</select></div>
-  <p class="note">Valeur (prix d'achat) : <b>${fmt(sum(list, p => p.qty * p.buy))}</b> · ${sum(list, p => p.qty)} pièce(s)</p>
-  ${table(['Produit', 'État', '#Qté', '#Achat', '#Vente', '#Marge', ''], list.map(p => `<tr>
-    <td><b>${esc(p.name)}</b><div class="muted" style="font-size:13px">${esc([p.category, p.cpu, p.ram, p.storage, p.screen, p.gpu].filter(Boolean).join(' / '))}</div></td>
-    <td><span class="badge ${p.condition === 'Neuf' ? 'green' : 'orange'}">${esc(p.condition)}</span></td>
-    <td class="n ${p.qty <= 0 ? 'neg' : p.qty <= num(p.minQty) ? 'warn' : ''}">${p.qty}</td>
-    <td class="n">${fmt(p.buy)}</td><td class="n">${fmt(p.sell)}</td><td class="n pos">${fmt(p.sell - p.buy)}</td>
-    <td class="actions"><button class="btn sm sec" onclick="productHistory('${p.id}')">Historique</button> <button class="btn sm sec" onclick="editProduct('${p.id}')">Modifier</button> <button class="btn sm red" onclick="deleteProduct('${p.id}')" aria-label="Supprimer">×</button></td></tr>`), 'Aucun produit. Ajoutez-en un ou enregistrez un achat.')}`;
+  <div class="toolbar"><button class="btn" onclick="editProduct()">+ Produit</button><div class="searchrow">${searchBox('stock', L('Rechercher...', 'قلّب...'))}${sortButton(sort, STOCK_SORTS, 'setStockSort')}</div></div>
+  <div class="ssum"><div><span>${L('Produits', 'المنتوجات')}</span><b>${list.length}</b></div><div><span>${L('Pièces', 'الحبات')}</span><b>${sum(list, p => Math.max(0, p.qty))}</b></div><div><span>${L("Valeur (achat)", 'القيمة (الشرا)')}</span><b>${fmt(sum(list, p => Math.max(0, p.qty) * p.buy))}</b></div><div><span>${L('Stock faible', 'قرب يسالي')}</span><b class="${lowN ? 'neg' : 'pos'}">${lowN}</b></div></div>
+  ${cats.length > 1 ? `<div class="catchips">${['', ...cats].map(c => `<button type="button" class="chipbtn${c === cat ? ' on' : ''}" onclick="setStockCat(this.dataset.cat)" data-cat="${esc(c)}">${c ? esc(tr(c)) : L('Tous', 'الكل')}</button>`).join('')}</div>` : ''}
+  ${sort !== 'name' ? `<p class="sortnote">${L('Tri', 'الترتيب')} : <b>${L(sortName[1], sortName[2])}</b> <button class="linkbtn" onclick="setStockSort('name')">${L('Annuler', 'رجّع')}</button></p>` : ''}
+  ${list.length ? `<div class="slist">${list.map(card).join('')}</div>` : `<div class="tablewrap"><div class="empty">${db.products.length ? L('Aucun produit trouvé', 'ما لقينا حتى منتوج') : L('Aucun produit. Ajoutez-en un ou enregistrez un achat.', 'ما كاين حتى منتوج. زيد واحد ولا سجل شرا.')}</div></div>`}`;
 };
 function editProduct(id) {
   const p = id ? prod(id) : {name:'', category:'PC Portable', condition:'Occasion', qty:1, buy:0, sell:0, minQty:1};
