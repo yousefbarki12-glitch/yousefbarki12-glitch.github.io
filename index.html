@@ -796,7 +796,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '22'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '23'; // à changer avec CACHE dans sw.js
 const NUM = 'type="number" inputmode="decimal" step="0.01"';
 /* Champs numériques : un 0 n'est pas écrit (le 0 gris du placeholder suffit) ; les quantités valent 1 par défaut */
 function blankZeros(root) {
@@ -965,7 +965,12 @@ function setFilter(k, v) {
   const el = document.getElementById('search'); if (el) { el.focus(); el.setSelectionRange(v.length, v.length); }
 }
 function searchBox(k, ph) { return `<input id="search" class="search" type="search" placeholder="${ph || 'Rechercher...'}" value="${esc(filters[k] || '')}" oninput="setFilter('${k}', this.value)">`; }
-const match = (k, text) => { const q = (filters[k] || '').toLowerCase().trim(); return !q || text.toLowerCase().includes(q); };
+/* Recherche : chaque mot doit être trouvé ; un nombre cherche aussi dans les prix (« 32 » trouve 3200, « 3 200 » et « 3200,00 » marchent) */
+const foldTxt = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const searchWords = q => foldTxt(q).replace(/(\d)[\s  .]+(?=\d{3}(?!\d))/g, '$1').trim().split(/\s+/).filter(Boolean);
+const priceHit = (w, prices) => { const m = w.replace(',', '.').match(/^\d+(\.\d+)?$/); if (!m) return false; const n = parseFloat(m[0]); return prices.some(p => { p = Math.abs(num(p)); return p === n || String(Math.round(p)).startsWith(w.split(/[.,]/)[0]) && !/[.,]/.test(w); }); };
+const textMatch = (q, text, prices = []) => { const h = foldTxt(text); return searchWords(q).every(w => h.includes(w) || priceHit(w, prices)); };
+const match = (k, text, prices = []) => textMatch(filters[k] || '', text, prices);
 function table(head, rows, emptyMsg) {
   if (!rows.length) return `<div class="tablewrap"><div class="empty">${emptyMsg || 'Aucune donnée'}</div></div>`;
   return `<div class="tablewrap"><table><thead><tr>${head.map(h => `<th class="${h.startsWith('#') ? 'n' : ''}">${h.replace(/^#/, '')}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
@@ -1049,7 +1054,7 @@ function setStockCat(c) { filters.stockCat = c; render(); }
 views.stock = () => {
   const cat = filters.stockCat || '', sort = filters.stockSort || 'name';
   const lvl = p => p.qty <= 0 ? 2 : p.qty <= num(p.minQty) ? 1 : 0;
-  let list = db.products.filter(p => (!cat || p.category === cat) && match('stock', [p.name, p.cpu, p.ram, p.storage, p.category, p.condition, p.notes].join(' ')));
+  let list = db.products.filter(p => (!cat || p.category === cat) && match('stock', [p.name, p.cpu, p.ram, p.storage, p.category, tr(p.category || ''), p.condition, p.notes].join(' '), [p.sell, p.buy]));
   if (sort === 'out') list = list.filter(p => p.qty <= 0);
   if (sort === 'inStock') list = list.filter(p => p.qty > 0);
   const byName = (a, b) => a.name.localeCompare(b.name);
@@ -1126,7 +1131,7 @@ function productHistory(id) {
 /* ---------- CLIENTS / FOURNISSEURS ---------- */
 function partyView(type) {
   const isC = type === 'client', list = isC ? db.clients : db.suppliers, k = isC ? 'clients' : 'suppliers', only = filters[k + 'Debt'];
-  const rows = list.map(x => ({x, b:balance(type, x.id)})).filter(r => match(k, [r.x.name, r.x.phone, r.x.cin, r.x.address].join(' ')) && (!only || r.b > 0.009)).sort((a, b) => a.x.name.localeCompare(b.x.name));
+  const rows = list.map(x => ({x, b:balance(type, x.id)})).filter(r => match(k, [r.x.name, r.x.phone, r.x.cin, r.x.address].join(' '), [r.b]) && (!only || r.b > 0.009)).sort((a, b) => a.x.name.localeCompare(b.x.name));
   return `<h1>${isC ? 'Clients' : 'Fournisseurs'}</h1>
   <div class="toolbar"><button class="btn" onclick="editParty('${type}')">+ ${isC ? 'Client' : 'Fournisseur'}</button>${searchBox(k)}
   <label style="display:flex;gap:6px;align-items:center;white-space:nowrap;font-size:14px"><input id="debtOnly" type="checkbox" style="width:auto" ${only ? 'checked' : ''} onchange="filters['${k}Debt']=this.checked;render()"> ${isC ? 'Ceux qui doivent' : 'Ceux à payer'}</label></div>
@@ -1267,7 +1272,7 @@ function openPicker(i) {
   el.innerHTML = `<div class="box pickbox" role="dialog" aria-modal="true" aria-labelledby="picktitle">
     <div class="pickhead">
       <div class="picktop"><h3 id="picktitle">${L('Choisir un produit', 'اختار منتوج')}</h3><button type="button" class="pickx" onclick="closePicker()" aria-label="${L('Fermer', 'سد')}">×</button></div>
-      <input id="pickq" class="search" type="search" autocomplete="off" enterkeyhint="search" placeholder="${L('Nom, marque, catégorie...', 'السمية، الماركة، النوع...')}" oninput="pickRender()" onkeydown="if(event.key==='Enter'){event.preventDefault();pickFirst()}">
+      <input id="pickq" class="search" type="search" autocomplete="off" enterkeyhint="search" placeholder="${L('Nom, marque, prix...', 'السمية، الماركة، الثمن...')}" oninput="pickRender()" onkeydown="if(event.key==='Enter'){event.preventDefault();pickFirst()}">
       ${cats.length > 1 ? `<div class="pickcats" id="pickcats">${['', ...cats].map(c => `<button type="button" class="chipbtn${c === '' ? ' on' : ''}" data-cat="${esc(c)}" onclick="pickCatSet(this)">${c ? esc(tr(c)) : L('Tous', 'الكل')}</button>`).join('')}</div>` : ''}
       <div class="pickcount" id="pickcount"></div>
     </div>
@@ -1277,9 +1282,9 @@ function openPicker(i) {
 }
 function closePicker() { const el = $('#pick'); if (el) { el.hidden = true; el.innerHTML = ''; } pickRow = -1; }
 function pickMatches() {
-  const isS = draft.kind === 'sale', words = fold($('#pickq')?.value).split(/\s+/).filter(Boolean);
+  const isS = draft.kind === 'sale', q = $('#pickq')?.value || '';
   return db.products
-    .filter(p => (!pickCat || p.category === pickCat) && words.every(w => fold([pLabel(p), p.category, tr(p.category || ''), p.condition, p.brand].join(' ')).includes(w)))
+    .filter(p => (!pickCat || p.category === pickCat) && textMatch(q, [pLabel(p), p.category, tr(p.category || ''), p.condition, p.brand].join(' '), [p.sell, p.buy]))
     .sort((a, b) => (isS ? (b.qty > 0) - (a.qty > 0) : 0) || a.name.localeCompare(b.name));
 }
 function pickRender() {
@@ -1379,7 +1384,7 @@ function sortButton(cur, list, fn) {
 }
 views.sales = () => {
   const sort = filters.salesSort || 'recent', due = s => s.total - s.paid > 0.009;
-  let list = db.sales.map((s, i) => ({s, i})).filter(({s}) => match('sales', [s.num, client(s.clientId)?.name, s.items.map(i => i.name + ' ' + (i.serial || '')).join(' '), fdate(s.date)].join(' ')));
+  let list = db.sales.map((s, i) => ({s, i})).filter(({s}) => match('sales', [s.num, client(s.clientId)?.name, s.items.map(i => i.name + ' ' + (i.serial || '')).join(' '), fdate(s.date)].join(' '), [s.total, s.paid, s.total - s.paid, ...s.items.map(i => i.price)]));
   if (sort === 'unpaidOnly') list = list.filter(({s}) => due(s));
   const byDate = (a, b) => b.s.date.localeCompare(a.s.date) || b.i - a.i;
   list.sort(sort === 'old' ? (a, b) => -byDate(a, b) : sort === 'unpaid' ? (a, b) => due(b.s) - due(a.s) || byDate(a, b) : sort === 'amount' ? (a, b) => b.s.total - a.s.total : sort === 'profit' ? (a, b) => saleProfit(b.s) - saleProfit(a.s) : byDate);
@@ -1459,7 +1464,7 @@ async function deleteSale(id) {
 
 /* ---------- ACHATS (liste) ---------- */
 views.purchases = () => {
-  const list = [...db.purchases].reverse().filter(a => match('purchases', [a.num, supplier(a.supplierId)?.name, a.items.map(i => i.name).join(' '), fdate(a.date)].join(' ')));
+  const list = [...db.purchases].reverse().filter(a => match('purchases', [a.num, supplier(a.supplierId)?.name, a.items.map(i => i.name).join(' '), fdate(a.date)].join(' '), [a.total, a.paid, a.total - a.paid, ...a.items.map(i => i.price)]));
   return `<h1>Achats</h1><div class="toolbar"><button class="btn" onclick="newPurchase()">+ Achat</button>${searchBox('purchases', 'N°, fournisseur, produit...')}</div>
   <p class="note">${list.length} achat(s) · <b>${fmt(sum(list, a => a.total))}</b></p>
   ${table(['N°', 'Date', 'Fournisseur', 'Articles', '#Total', '#Payé', '#Reste', ''], list.map(a => `<tr>
@@ -1479,7 +1484,7 @@ async function deletePurchase(id) {
 /* ---------- PAIEMENTS ---------- */
 views.payments = () => {
   const t = filters.payType || '';
-  const list = [...db.payments].sort((a, b) => b.date.localeCompare(a.date)).filter(p => (!t || p.type === t) && match('payments', [party(p.type, p.partyId)?.name, p.method, p.note].join(' ')));
+  const list = [...db.payments].sort((a, b) => b.date.localeCompare(a.date)).filter(p => (!t || p.type === t) && match('payments', [party(p.type, p.partyId)?.name, p.method, p.note, fdate(p.date)].join(' '), [p.amount]));
   return `<h1>Paiements / Crédit</h1>
   <div class="quick"><button class="btn green" onclick="newPayment('client')">Encaisser un client</button><button class="btn" onclick="newPayment('supplier')">Payer un fournisseur</button></div>
   <div class="toolbar">${searchBox('payments')}<select id="payType" style="max-width:220px" onchange="filters.payType=this.value;render()"><option value="">Tous</option><option value="client" ${t === 'client' ? 'selected' : ''}>Reçus des clients</option><option value="supplier" ${t === 'supplier' ? 'selected' : ''}>Versés aux fournisseurs</option></select></div>

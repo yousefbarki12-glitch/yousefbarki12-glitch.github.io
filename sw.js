@@ -1,6 +1,6 @@
 ﻿// Permet à l'application de s'ouvrir sans internet.
 // Changer CACHE (et APP_VERSION dans index.html) à chaque mise à jour.
-const CACHE = 'magasin-pc-v22';
+const CACHE = 'magasin-pc-v23';
 const FILES = ['./', './index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png', './logo.png', './logo-mark.png'];
 
 self.addEventListener('install', e => {
