@@ -343,32 +343,47 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 .amsg.ok{background:var(--good-soft);color:var(--good)}
 .appver{text-align:center;color:var(--muted);font-size:12px;margin:18px 0 4px}
 /* Liste des ventes */
+.searchrow{flex:1 1 220px;display:flex;gap:8px;min-width:0}
+.searchrow input.search{flex:1;min-width:0}
+.sortbtn{position:relative;flex-shrink:0;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:var(--panel);color:var(--accent);box-shadow:0 1px 2px rgba(20,30,55,.06),0 4px 14px rgba(20,30,55,.06),inset 0 0 0 1px var(--line);cursor:pointer}
+.sortbtn.on{background:var(--accent);color:#fff;box-shadow:none}
+.sortbtn.on::after{content:"";position:absolute;top:8px;inset-inline-end:8px;width:8px;height:8px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 0 2px var(--accent)}
+.sortbtn select{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;font-size:16px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.sortnote{font-size:13px;color:var(--muted);margin:10px 4px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sortnote .linkbtn{padding:4px 6px}
 .ssum{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:0 0 6px}
 @media(min-width:700px){.ssum{grid-template-columns:repeat(4,1fr)}}
 .ssum div{background:var(--panel);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:2px;min-width:0}
 .ssum span{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .ssum b{font:800 16px var(--f-head);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sday{margin:18px 4px 8px;font:700 13px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.slist{display:flex;flex-direction:column}
-.scard{background:var(--panel);border-radius:18px;box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden;border-inline-start:4px solid var(--accent-2)}
+.slist{display:flex;flex-direction:column;margin-top:10px}
+.sday:first-child{margin-top:6px}
+.scard{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden;border-inline-start:4px solid var(--accent-2)}
 .scard.due{border-inline-start-color:var(--bad)}
-.scard-main{display:flex;flex-direction:column;gap:4px;width:100%;padding:14px 14px 10px;border:0;background:none;color:var(--fg);font:inherit;text-align:start;cursor:pointer}
-.scard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.scard-title{font:800 17px/1.25 var(--f-head);color:var(--accent);overflow-wrap:anywhere}
-.scard-qty{font-size:14px;color:var(--muted);font-weight:700}
-.scard-total{font:800 17px var(--f-head);font-variant-numeric:tabular-nums;white-space:nowrap}
-.scard-spec{font-size:13px;color:var(--fg);opacity:.75}
-.scard-more{font-size:13px;font-weight:600;color:var(--accent-2)}
-.scard-meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px;color:var(--muted);margin-top:2px}
-.scard-meta>span+span::before{content:"·";margin-inline-end:10px}
-.scard-num{font-weight:700;color:var(--muted)}
-.scard-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px}
-.spill{font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px}
+.scard-top{display:flex;align-items:center;gap:10px;padding:14px;cursor:pointer;list-style:none;-webkit-tap-highlight-color:transparent}
+.scard-top::-webkit-details-marker{display:none}
+.scard-top:active{background:var(--panel2)}
+.scard-title{flex:1;min-width:0;font:800 16px/1.25 var(--f-head);color:var(--accent);overflow-wrap:anywhere}
+.scard-qty{font-size:13px;color:var(--muted);font-weight:700}
+.scard-total{font:800 16px var(--f-head);font-variant-numeric:tabular-nums;white-space:nowrap}
+.scard-chev{color:var(--muted);flex-shrink:0;transition:transform .2s}
+.scard[open] .scard-chev{transform:rotate(180deg)}
+.scard[open] .scard-top{padding-bottom:6px}
+.scard-body{padding:0 14px 0;display:flex;flex-direction:column;gap:8px}
+.scard-spec{font-size:13px;color:var(--fg);opacity:.75;margin-top:-2px}
+.scard-items{list-style:none;margin:0;padding:8px 10px;background:var(--panel2);border-radius:10px;font-size:13px;display:flex;flex-direction:column;gap:4px}
+.scard-items li{display:flex;justify-content:space-between;gap:10px}
+.scard-items b{white-space:nowrap;font-variant-numeric:tabular-nums}
+.scard-info{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+.scard-info div{min-width:0}
+.scard-info dt{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.scard-info dd{margin:2px 0 0;font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.spill{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px}
 .spill.good{background:var(--good-soft);color:var(--good)}
 .spill.bad{background:var(--bad-soft);color:var(--bad)}
-.scard-profit{font-size:13px;color:var(--muted)}
-.scard-profit b{color:var(--good);font-variant-numeric:tabular-nums}
-.scard-actions{display:flex;justify-content:flex-end;gap:6px;padding:8px 12px;border-top:1px solid var(--line);background:var(--panel2)}
+.scard-actions{display:flex;justify-content:flex-end;gap:6px;padding:10px 14px;margin:0 -14px;border-top:1px solid var(--line);background:var(--panel2)}
 .scard-actions .btn.sec{background:var(--panel);box-shadow:inset 0 0 0 1px var(--line)}
 /* Barre de recherche : même design partout */
 input.search{flex:1 1 220px;max-width:none;min-height:48px;padding-block:12px;padding-inline:44px 14px;font-size:16px;border-radius:14px;
@@ -775,7 +790,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '20'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '21'; // à changer avec CACHE dans sw.js
 const NUM = 'type="number" inputmode="decimal" step="0.01"';
 /* Champs numériques : un 0 n'est pas écrit (le 0 gris du placeholder suffit) ; les quantités valent 1 par défaut */
 function blankZeros(root) {
@@ -1314,33 +1329,55 @@ function savePurchase() {
 }
 
 /* ---------- VENTES (liste) ---------- */
+const SALE_SORTS = [
+  ['recent', "Plus récentes", 'الأحدث'], ['old', "Plus anciennes", 'الأقدم'],
+  ['unpaid', "Non payées d'abord", 'اللي ما تخلصاتش الأولى'], ['unpaidOnly', "Seulement non payées", 'غير اللي ما تخلصاتش'],
+  ['amount', "Montant (plus grand)", 'المبلغ (الأكبر)'], ['profit', "Bénéfice (plus grand)", 'الربح (الأكبر)']
+];
+function setSaleSort(v) { filters.salesSort = v; render(); }
+function sortButton(cur, list, fn) {
+  const on = cur && cur !== list[0][0];
+  return `<label class="sortbtn${on ? ' on' : ''}" title="${L('Trier', 'رتّب')}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M6 12h12M10 18h4"/></svg><span class="sr">${L('Trier', 'رتّب')}</span>
+    <select aria-label="${L('Trier', 'رتّب')}" onchange="${fn}(this.value)">${list.map(([k, fr, ar]) => `<option value="${k}" ${k === (cur || list[0][0]) ? 'selected' : ''}>${L(fr, ar)}</option>`).join('')}</select></label>`;
+}
 views.sales = () => {
-  const list = [...db.sales].reverse().filter(s => match('sales', [s.num, client(s.clientId)?.name, s.items.map(i => i.name + ' ' + (i.serial || '')).join(' '), fdate(s.date)].join(' ')));
+  const sort = filters.salesSort || 'recent', due = s => s.total - s.paid > 0.009;
+  let list = db.sales.map((s, i) => ({s, i})).filter(({s}) => match('sales', [s.num, client(s.clientId)?.name, s.items.map(i => i.name + ' ' + (i.serial || '')).join(' '), fdate(s.date)].join(' ')));
+  if (sort === 'unpaidOnly') list = list.filter(({s}) => due(s));
+  const byDate = (a, b) => b.s.date.localeCompare(a.s.date) || b.i - a.i;
+  list.sort(sort === 'old' ? (a, b) => -byDate(a, b) : sort === 'unpaid' ? (a, b) => due(b.s) - due(a.s) || byDate(a, b) : sort === 'amount' ? (a, b) => b.s.total - a.s.total : sort === 'profit' ? (a, b) => saleProfit(b.s) - saleProfit(a.s) : byDate);
+  list = list.map(x => x.s);
   const t = today(), y = (() => { const d = new Date(t); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
   const dayLabel = d => d === t ? L("Aujourd'hui", 'اليوم') : d === y ? L('Hier', 'البارح') : fdate(d);
   const total = sum(list, s => s.total), rest = sum(list, s => Math.max(0, s.total - s.paid)), profit = sum(list, saleProfit);
   const card = s => {
     const first = s.items[0] || {name: ''}, [title, ...spec] = String(first.name).split(' · ');
     const more = s.items.length - 1, left = r2(s.total - s.paid), cl = client(s.clientId);
-    return `<article class="scard${left > 0.009 ? ' due' : ''}">
-      <button type="button" class="scard-main" onclick="showSale('${s.id}')">
-        <span class="scard-top"><span class="scard-title">${esc(title)}${first.qty > 1 ? ` <span class="scard-qty">×${first.qty}</span>` : ''}</span><b class="scard-total">${fmt(s.total)}</b></span>
+    return `<details class="scard${left > 0.009 ? ' due' : ''}">
+      <summary class="scard-top"><span class="scard-title">${esc(title)}${first.qty > 1 ? ` <span class="scard-qty">×${first.qty}</span>` : ''}${more > 0 ? ` <span class="scard-qty">+${more}</span>` : ''}</span><b class="scard-total">${fmt(s.total)}</b><svg class="scard-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+      <div class="scard-body">
         ${spec.length ? `<span class="scard-spec">${esc(spec.join(' · '))}</span>` : ''}
-        ${more > 0 ? `<span class="scard-more">+ ${more} ${more > 1 ? L('autres articles', 'سلع أخرى') : L('autre article', 'سلعة أخرى')}</span>` : ''}
-        <span class="scard-meta"><span class="scard-num">${s.num}</span><span>${esc(cl ? cl.name : L('Client passager', 'زبون عابر'))}</span>${s.items.some(i => i.serial) ? `<span>S/N ${esc(s.items.map(i => i.serial).filter(Boolean).join(', '))}</span>` : ''}</span>
-        <span class="scard-foot">
-          ${left > 0.009 ? `<span class="spill bad">${L('Reste', 'باقي')} ${fmt(left)}</span>` : `<span class="spill good">${L('Payé', 'مخلص')}</span>`}
-          <span class="scard-profit">${L('Bénéfice', 'الربح')} <b>${fmt(saleProfit(s))}</b></span>
-        </span>
-      </button>
-      <div class="scard-actions"><button class="btn sm sec" onclick="showSale('${s.id}')">${L('Facture', 'الفاتورة')}</button><button class="btn sm red" onclick="deleteSale('${s.id}')" aria-label="${L('Supprimer', 'مسح')}">×</button></div>
-    </article>`;
+        ${more > 0 ? `<ul class="scard-items">${s.items.map(i => `<li><span>${i.qty}× ${esc(i.name)}</span><b>${fmt(i.qty * i.price)}</b></li>`).join('')}</ul>` : ''}
+        <dl class="scard-info">
+          <div><dt>${L('N°', 'الرقم')}</dt><dd>${s.num}</dd></div>
+          <div><dt>${L('Date', 'التاريخ')}</dt><dd>${fdate(s.date)}</dd></div>
+          <div><dt>${L('Client', 'الزبون')}</dt><dd>${esc(cl ? cl.name : L('Client passager', 'زبون عابر'))}</dd></div>
+          ${s.items.some(i => i.serial) ? `<div><dt>${L('N° série', 'الرقم التسلسلي')}</dt><dd>${esc(s.items.map(i => i.serial).filter(Boolean).join(', '))}</dd></div>` : ''}
+          <div><dt>${L('Paiement', 'الأداء')}</dt><dd>${left > 0.009 ? `<span class="spill bad">${L('Reste', 'باقي')} ${fmt(left)}</span>` : `<span class="spill good">${L('Payé', 'مخلص')}</span>`}</dd></div>
+          <div><dt>${L('Bénéfice', 'الربح')}</dt><dd class="pos"><b>${fmt(saleProfit(s))}</b></dd></div>
+        </dl>
+        <div class="scard-actions"><button class="btn sm sec" onclick="showSale('${s.id}')">${L('Facture', 'الفاتورة')}</button><button class="btn sm red" onclick="deleteSale('${s.id}')" aria-label="${L('Supprimer', 'مسح')}">×</button></div>
+      </div>
+    </details>`;
   };
+  const grouped = sort === 'recent' || sort === 'old';
   let html = '', last = null;
-  list.forEach(s => { if (s.date !== last) { last = s.date; html += `<h3 class="sday">${dayLabel(s.date)}</h3>`; } html += card(s); });
-  return `<h1>Ventes</h1><div class="toolbar"><button class="btn green" onclick="newSale()">+ Vente</button>${searchBox('sales', 'N°, client, produit, n° série...')}</div>
+  list.forEach(s => { if (grouped && s.date !== last) { last = s.date; html += `<h3 class="sday">${dayLabel(s.date)}</h3>`; } html += card(s); });
+  const sortName = SALE_SORTS.find(x => x[0] === sort);
+  return `<h1>Ventes</h1><div class="toolbar"><button class="btn green" onclick="newSale()">+ Vente</button><div class="searchrow">${searchBox('sales', L('Rechercher...', 'قلّب...'))}${sortButton(sort, SALE_SORTS, 'setSaleSort')}</div></div>
   <div class="ssum"><div><span>${L('Ventes', 'المبيعات')}</span><b>${list.length}</b></div><div><span>${L('Total', 'المجموع')}</span><b>${fmt(total)}</b></div><div><span>${L('Bénéfice', 'الربح')}</span><b class="pos">${fmt(profit)}</b></div>${rest > 0.009 ? `<div><span>${L('Crédit', 'الكريدي')}</span><b class="neg">${fmt(rest)}</b></div>` : ''}</div>
-  ${list.length ? `<div class="slist">${html}</div>` : `<div class="tablewrap"><div class="empty">${L('Aucune vente', 'ما كاين حتى بيع')}</div></div>`}`;
+  ${sort !== 'recent' ? `<p class="sortnote">${L('Tri', 'الترتيب')} : <b>${L(sortName[1], sortName[2])}</b> <button class="linkbtn" onclick="setSaleSort('recent')">${L('Annuler', 'رجّع')}</button></p>` : ''}
+  ${list.length ? `<div class="slist">${html}</div>` : `<div class="tablewrap"><div class="empty">${sort === 'unpaidOnly' ? L('Toutes les ventes sont payées 👍', 'كاع المبيعات مخلصين 👍') : L('Aucune vente', 'ما كاين حتى بيع')}</div></div>`}`;
 };
 function invoiceHTML(s) {
   const c = client(s.clientId), st = db.settings, rest = s.total - s.paid;
