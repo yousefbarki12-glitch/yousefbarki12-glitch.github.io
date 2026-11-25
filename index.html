@@ -363,6 +363,7 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 .sday:first-child{margin-top:6px}
 .scard{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden;border-inline-start:4px solid var(--accent-2)}
 .scard.due{border-inline-start-color:var(--bad)}
+.pwait{display:block;font-size:11.5px;font-weight:600;color:var(--warn);margin-top:2px}
 button.stat.tap{position:relative;display:block;width:100%;text-align:start;font:inherit;color:inherit;cursor:pointer;border:0;box-shadow:var(--shadow)}
 button.stat.tap:active{transform:scale(.98)}
 button.stat.tap .chev{position:absolute;top:14px;inset-inline-end:12px;color:var(--muted)}
@@ -813,7 +814,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '25'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '26'; // à changer avec CACHE dans sw.js
 const NUM = 'type="number" inputmode="decimal" step="0.01"';
 /* Champs numériques : un 0 n'est pas écrit (le 0 gris du placeholder suffit) ; les quantités valent 1 par défaut */
 function blankZeros(root) {
@@ -939,6 +940,46 @@ function supplierBalance(id) {
 }
 const balance = (type, id) => type === 'client' ? clientBalance(id) : supplierBalance(id);
 const saleProfit = s => sum(s.items, i => (i.price - i.cost) * i.qty) - num(s.discount);
+/* Bénéfice encaissé : le bénéfice d'une vente ne compte que sur l'argent reçu.
+   Client à 100 % crédit = 0 de bénéfice ; s'il paie la moitié, la moitié du bénéfice compte, le jour où l'argent arrive.
+   Les paiements « Encaisser » d'un client remboursent d'abord son crédit d'avant, puis ses ventes les plus anciennes. */
+let _cash = null, _cashKey = '';
+function cashInfo() {
+  const key = [db.savedAt || 0, db.sales.length, db.payments.length, db.clients.length, sum(db.payments, p => num(p.amount)), sum(db.sales, x => num(x.paid))].join('|');
+  if (_cash && _cashKey === key) return _cash;
+  const info = new Map();
+  db.sales.forEach(x => { const t = Math.max(0, num(x.total)), pd = Math.min(Math.max(0, num(x.paid)), t); info.set(x.id, {paid: pd, ev: pd > 0 ? [{date: x.date, amt: pd}] : []}); });
+  const q = new Map(db.clients.map(c => [c.id, {opening: Math.max(0, num(c.opening)), sales: []}]));
+  db.sales.forEach(x => { const c = q.get(x.clientId); if (c) c.sales.push(x); });
+  q.forEach(c => c.sales.sort((a, b) => a.date.localeCompare(b.date) || String(a.num).localeCompare(String(b.num))));
+  db.payments.filter(p => p.type === 'client').sort((a, b) => a.date.localeCompare(b.date)).forEach(p => {
+    const c = q.get(p.partyId); if (!c) return;
+    let left = num(p.amount);
+    if (c.opening > 0) { const t = Math.min(c.opening, left); c.opening -= t; left -= t; }
+    for (const x of c.sales) {
+      if (left <= 0.009) break;
+      const i = info.get(x.id), due = num(x.total) - i.paid; if (due <= 0.009) continue;
+      const t = Math.min(due, left); i.paid += t; left -= t; i.ev.push({date: p.date > x.date ? p.date : x.date, amt: t});
+    }
+  });
+  _cash = info; _cashKey = key; return info;
+}
+const saleRatio = x => { const t = num(x.total); if (t <= 0) return 1; const i = cashInfo().get(x.id); return i ? Math.min(1, i.paid / t) : Math.min(1, num(x.paid) / t); };
+const saleEarned = x => r2(saleProfit(x) * saleRatio(x));
+// Reste à payer d'une vente, en comptant aussi les paiements faits après (Encaisser)
+const saleLeft = x => { const i = cashInfo().get(x.id); return r2(num(x.total) - (i ? i.paid : num(x.paid))); };
+const salePending = x => r2(saleProfit(x) - saleEarned(x));
+// Bénéfice encaissé entre deux dates (selon le jour où l'argent est reçu)
+function earnedBetween(from, to) {
+  const ci = cashInfo(); let tot = 0;
+  db.sales.forEach(x => {
+    const t = num(x.total), pr = saleProfit(x);
+    if (t <= 0) { if (x.date >= from && x.date <= to) tot += pr; return; }
+    const i = ci.get(x.id); if (!i) return;
+    i.ev.forEach(e => { if (e.date >= from && e.date <= to) tot += pr * e.amt / t; });
+  });
+  return r2(tot);
+}
 
 /* ---------- Téléchargements ---------- */
 async function offerFile(filename, data) {
@@ -1026,7 +1067,8 @@ const views = {};
 views.dashboard = () => {
   const t = today(), m = t.slice(0, 7);
   const sT = db.sales.filter(s => s.date === t), sM = db.sales.filter(s => s.date.startsWith(m));
-  const expM = sum(db.expenses.filter(e => e.date.startsWith(m)), e => e.amount), profitM = sum(sM, saleProfit);
+  const expM = sum(db.expenses.filter(e => e.date.startsWith(m)), e => e.amount), profitM = earnedBetween(m + '-01', m + '-31');
+  const waitP = sum(db.sales, x => Math.max(0, salePending(x)));
   const cl = db.clients.map(c => ({c, b:clientBalance(c.id)})).filter(x => x.b > 0.009).sort((a, b) => b.b - a.b);
   const su = db.suppliers.map(s => ({s, b:supplierBalance(s.id)})).filter(x => x.b > 0.009).sort((a, b) => b.b - a.b);
   const low = db.products.filter(p => p.qty <= num(p.minQty) && (p.qty > 0 || num(p.minQty) > 0));
@@ -1056,7 +1098,7 @@ views.dashboard = () => {
     <button onclick="newPayment('supplier')"><span class="ic">${IC.truck}</span>${L('Payer', 'خلص')}</button>
   </div>
   <div class="stats">
-    <button type="button" class="stat tap" onclick="openDebts('client')"><div class="l">Crédit clients</div><div class="v neg">${fmt(sum(cl, x => x.b))}</div><div class="s">${cl.length} client(s) doivent</div>${chev}</button>
+    <button type="button" class="stat tap" onclick="openDebts('client')"><div class="l">Crédit clients</div><div class="v neg">${fmt(sum(cl, x => x.b))}</div><div class="s">${cl.length} client(s) doivent</div>${waitP > 0.009 ? `<div class="s">${L('Bénéfice en attente', 'ربح كيتسنى')} <b>${fmt(waitP)}</b></div>` : ''}${chev}</button>
     <button type="button" class="stat tap" onclick="openDebts('supplier')"><div class="l">Dettes fournisseurs</div><div class="v warn">${fmt(sum(su, x => x.b))}</div><div class="s">${su.length} fournisseur(s)</div>${chev}</button>
     <div class="stat"><div class="l">Valeur du stock</div><div class="v">${fmt(sum(db.products, p => p.qty * p.buy))}</div><div class="s">${sum(db.products, p => p.qty)} pièce(s)</div></div>
     <div class="stat"><div class="l">${L('Dépenses du mois', 'مصاريف الشهر')}</div><div class="v">${fmt(expM)}</div><div class="s">${L('Bénéfice brut', 'الربح الخام')} ${fmt(profitM)}</div></div>
@@ -1066,7 +1108,7 @@ views.dashboard = () => {
   ${sect('Fournisseurs à payer', 'suppliers')}
   ${list(su.slice(0, 6).map(x => li('orange', ini(x.s.name), esc(x.s.name), esc(x.s.phone) || '&nbsp;', fmt(x.b), 'warn', `statement('supplier','${x.s.id}')`)), 'Aucune dette fournisseur')}
   ${sect('Dernières ventes', 'sales')}
-  ${list([...db.sales].reverse().slice(0, 6).map(s => { const r = s.total - s.paid; return li(r > 0.009 ? 'red' : 'green', IC.sale.replace('<svg', '<svg width="20" height="20"'), esc(client(s.clientId)?.name || 'Client passager'), s.num + ' · ' + fdate(s.date), fmt(s.total), '', `showSale('${s.id}')`); }), 'Aucune vente')}
+  ${list([...db.sales].reverse().slice(0, 6).map(s => { const r = saleLeft(s); return li(r > 0.009 ? 'red' : 'green', IC.sale.replace('<svg', '<svg width="20" height="20"'), esc(client(s.clientId)?.name || 'Client passager'), s.num + ' · ' + fdate(s.date), fmt(s.total), '', `showSale('${s.id}')`); }), 'Aucune vente')}
   ${low.length ? sect('Stock faible', 'stock') + list(low.map(p => li(p.qty <= 0 ? 'red' : 'orange', p.qty, esc(p.name), esc([p.cpu, p.ram, p.storage].filter(Boolean).join(' / ')) || '&nbsp;', L('Seuil', 'الحد') + ' ' + num(p.minQty), 'muted', `editProduct('${p.id}')`)), '') : ''}`;
 };
 
@@ -1077,7 +1119,8 @@ function openDebts(type) {
   const docs = isC ? db.sales : db.purchases, key = isC ? 'clientId' : 'supplierId';
   const tel = ph => String(ph || '').replace(/[^\d+]/g, '');
   const card = ({x, b}) => {
-    const open = docs.filter(d => d[key] === x.id && d.total - d.paid > 0.009).sort((a, c) => c.date.localeCompare(a.date));
+    const dLeft = d => isC ? saleLeft(d) : r2(d.total - d.paid);
+    const open = docs.filter(d => d[key] === x.id && dLeft(d) > 0.009).sort((a, c) => c.date.localeCompare(a.date));
     const pays = db.payments.filter(p => p.type === type && p.partyId === x.id).sort((a, c) => c.date.localeCompare(a.date));
     const lastDoc = docs.filter(d => d[key] === x.id).sort((a, c) => c.date.localeCompare(a.date))[0];
     return `<details class="scard ${isC ? 'due' : 'low'}">
@@ -1091,7 +1134,7 @@ function openDebts(type) {
           <div><dt>${isC ? L('Dernier achat', 'آخر شرا') : L('Dernière livraison', 'آخر سلعة')}</dt><dd>${lastDoc ? fdate(lastDoc.date) : '—'}</dd></div>
           <div><dt>${L('Dernier paiement', 'آخر خلاص')}</dt><dd>${pays[0] ? `${fmt(pays[0].amount)}<small class="muted"> · ${fdate(pays[0].date)}</small>` : '—'}</dd></div>
         </dl>
-        ${open.length ? `<div class="dlist"><div class="dlist-h">${isC ? L('Ventes non payées', 'مبيعات ما تخلصاتش') : L('Achats non payés', 'شريات ما تخلصاتش')} (${open.length})</div>${open.map(d => `<button type="button" class="dline" onclick="${isC ? `showSale('${d.id}')` : `go('purchases')`}"><span><b>${esc(String((d.items[0] || {}).name || '').split(' · ')[0])}${d.items.length > 1 ? ` <small>+${d.items.length - 1}</small>` : ''}</b><small>${d.num} · ${fdate(d.date)}</small></span><span class="dline-r">${fmt(d.total - d.paid)}<small>${L('sur', 'من')} ${fmt(d.total)}</small></span></button>`).join('')}</div>` : ''}
+        ${open.length ? `<div class="dlist"><div class="dlist-h">${isC ? L('Ventes non payées', 'مبيعات ما تخلصاتش') : L('Achats non payés', 'شريات ما تخلصاتش')} (${open.length})</div>${open.map(d => `<button type="button" class="dline" onclick="${isC ? `showSale('${d.id}')` : `go('purchases')`}"><span><b>${esc(String((d.items[0] || {}).name || '').split(' · ')[0])}${d.items.length > 1 ? ` <small>+${d.items.length - 1}</small>` : ''}</b><small>${d.num} · ${fdate(d.date)}</small></span><span class="dline-r">${fmt(dLeft(d))}<small>${L('sur', 'من')} ${fmt(d.total)}</small></span></button>`).join('')}</div>` : ''}
         <div class="scard-actions">${x.phone ? `<a class="btn sm sec" href="tel:${tel(x.phone)}">${L('Appeler', 'عيّط')}</a>` : ''}<button class="btn sm sec" onclick="statement('${type}','${x.id}')">${L('Relevé', 'الكشف')}</button><button class="btn sm ${isC ? 'green' : ''}" onclick="newPayment('${type}','${x.id}')">${isC ? L('Encaisser', 'استلم') : L('Payer', 'خلص')}</button></div>
       </div>
     </details>`;
@@ -1442,19 +1485,19 @@ function sortButton(cur, list, fn) {
     <select aria-label="${L('Trier', 'رتّب')}" onchange="${fn}(this.value)">${list.map(([k, fr, ar]) => `<option value="${k}" ${k === (cur || list[0][0]) ? 'selected' : ''}>${L(fr, ar)}</option>`).join('')}</select></label>`;
 }
 views.sales = () => {
-  const sort = filters.salesSort || 'recent', due = s => s.total - s.paid > 0.009;
+  const sort = filters.salesSort || 'recent', due = s => saleLeft(s) > 0.009;
   const cmap = new Map(db.clients.map(c => [c.id, c]));
   let list = db.sales.map((s, i) => ({s, i})).filter(({s}) => match('sales', [s.num, cmap.get(s.clientId)?.name, s.items.map(i => i.name + ' ' + (i.serial || '')).join(' '), fdate(s.date)].join(' '), [s.total, s.paid, s.total - s.paid, ...s.items.map(i => i.price)]));
   if (sort === 'unpaidOnly') list = list.filter(({s}) => due(s));
   const byDate = (a, b) => b.s.date.localeCompare(a.s.date) || b.i - a.i;
-  list.sort(sort === 'old' ? (a, b) => -byDate(a, b) : sort === 'unpaid' ? (a, b) => due(b.s) - due(a.s) || byDate(a, b) : sort === 'amount' ? (a, b) => b.s.total - a.s.total : sort === 'profit' ? (a, b) => saleProfit(b.s) - saleProfit(a.s) : byDate);
+  list.sort(sort === 'old' ? (a, b) => -byDate(a, b) : sort === 'unpaid' ? (a, b) => due(b.s) - due(a.s) || byDate(a, b) : sort === 'amount' ? (a, b) => b.s.total - a.s.total : sort === 'profit' ? (a, b) => saleEarned(b.s) - saleEarned(a.s) : byDate);
   list = list.map(x => x.s);
   const t = today(), y = (() => { const d = new Date(t); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
   const dayLabel = d => d === t ? L("Aujourd'hui", 'اليوم') : d === y ? L('Hier', 'البارح') : fdate(d);
-  const total = sum(list, s => s.total), rest = sum(list, s => Math.max(0, s.total - s.paid)), profit = sum(list, saleProfit);
+  const total = sum(list, s => s.total), rest = sum(list, s => Math.max(0, saleLeft(s))), profit = sum(list, saleEarned), wait = sum(list, x => Math.max(0, salePending(x)));
   const card = s => {
     const first = s.items[0] || {name: ''}, [title, ...spec] = String(first.name).split(' · ');
-    const more = s.items.length - 1, left = r2(s.total - s.paid), cl = cmap.get(s.clientId);
+    const more = s.items.length - 1, left = saleLeft(s), cl = cmap.get(s.clientId);
     return `<details class="scard${left > 0.009 ? ' due' : ''}">
       <summary class="scard-top"><span class="scard-title">${esc(title)}${first.qty > 1 ? ` <span class="scard-qty">×${first.qty}</span>` : ''}${more > 0 ? ` <span class="scard-qty">+${more}</span>` : ''}</span><b class="scard-total">${fmt(s.total)}</b><svg class="scard-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
       <div class="scard-body">
@@ -1466,7 +1509,7 @@ views.sales = () => {
           <div><dt>${L('Client', 'الزبون')}</dt><dd>${esc(cl ? cl.name : L('Client passager', 'زبون عابر'))}</dd></div>
           ${s.items.some(i => i.serial) ? `<div><dt>${L('N° série', 'الرقم التسلسلي')}</dt><dd>${esc(s.items.map(i => i.serial).filter(Boolean).join(', '))}</dd></div>` : ''}
           <div><dt>${L('Paiement', 'الأداء')}</dt><dd>${left > 0.009 ? `<span class="spill bad">${L('Reste', 'باقي')} ${fmt(left)}</span>` : `<span class="spill good">${L('Payé', 'مخلص')}</span>`}</dd></div>
-          <div><dt>${L('Bénéfice', 'الربح')}</dt><dd class="pos"><b>${fmt(saleProfit(s))}</b></dd></div>
+          <div><dt>${L('Bénéfice reçu', 'الربح اللي دخل')}</dt><dd class="pos"><b>${fmt(saleEarned(s))}</b>${salePending(s) > 0.009 ? `<small class="pwait">${L('en attente', 'كيتسنى')} ${fmt(salePending(s))}</small>` : ''}</dd></div>
         </dl>
         <div class="scard-actions"><button class="btn sm sec" onclick="showSale('${s.id}')">${L('Facture', 'الفاتورة')}</button><button class="btn sm red" onclick="deleteSale('${s.id}')" aria-label="${L('Supprimer', 'مسح')}">×</button></div>
       </div>
@@ -1478,7 +1521,7 @@ views.sales = () => {
   shown.forEach(s => { if (grouped && s.date !== last) { last = s.date; html += `<h3 class="sday">${dayLabel(s.date)}</h3>`; } html += card(s); });
   const sortName = SALE_SORTS.find(x => x[0] === sort);
   return `<h1>Ventes</h1><div class="toolbar"><button class="btn green" onclick="newSale()">+ Vente</button><div class="searchrow">${searchBox('sales', L('Rechercher...', 'قلّب...'))}${sortButton(sort, SALE_SORTS, 'setSaleSort')}</div></div>
-  <div class="ssum"><div><span>${L('Ventes', 'المبيعات')}</span><b>${list.length}</b></div><div><span>${L('Total', 'المجموع')}</span><b>${fmt(total)}</b></div><div><span>${L('Bénéfice', 'الربح')}</span><b class="pos">${fmt(profit)}</b></div>${rest > 0.009 ? `<div><span>${L('Crédit', 'الكريدي')}</span><b class="neg">${fmt(rest)}</b></div>` : ''}</div>
+  <div class="ssum"><div><span>${L('Ventes', 'المبيعات')}</span><b>${list.length}</b></div><div><span>${L('Total', 'المجموع')}</span><b>${fmt(total)}</b></div><div><span>${L('Bénéfice reçu', 'الربح اللي دخل')}</span><b class="pos">${fmt(profit)}</b>${wait > 0.009 ? `<small class="pwait">${L('en attente', 'كيتسنى')} ${fmt(wait)}</small>` : ''}</div>${rest > 0.009 ? `<div><span>${L('Crédit', 'الكريدي')}</span><b class="neg">${fmt(rest)}</b></div>` : ''}</div>
   ${sort !== 'recent' ? `<p class="sortnote">${L('Tri', 'الترتيب')} : <b>${L(sortName[1], sortName[2])}</b> <button class="linkbtn" onclick="setSaleSort('recent')">${L('Annuler', 'رجّع')}</button></p>` : ''}
   ${list.length ? `<div class="slist">${html}</div>${moreBtn('sales', list.length, shown.length)}` : `<div class="tablewrap"><div class="empty">${sort === 'unpaidOnly' ? L('Toutes les ventes sont payées 👍', 'كاع المبيعات مخلصين 👍') : L('Aucune vente', 'ما كاين حتى بيع')}</div></div>`}`;
 };
@@ -1501,7 +1544,7 @@ function invoiceHTML(s) {
 const docWrap = (title, body) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head><body style="margin:0;padding:24px;background:#fff">${body}</body></html>`;
 function showSale(id) {
   const s = db.sales.find(x => x.id === id);
-  openModal('Vente ' + s.num, `<p class="note">Bénéfice de cette vente : <b class="pos">${fmt(saleProfit(s))}</b></p>
+  openModal('Vente ' + s.num, `<p class="note">${L('Bénéfice reçu', 'الربح اللي دخل')} : <b class="pos">${fmt(saleEarned(s))}</b>${salePending(s) > 0.009 ? ` · ${L('en attente du paiement', 'كيتسنى الخلاص')} : <b class="warn">${fmt(salePending(s))}</b> (${L('sur', 'من')} ${fmt(saleProfit(s))})` : ''}</p>
   <div class="inv">${invoiceHTML(s)}</div>
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Fermer</button><button class="btn sec" onclick="printHTML(invoiceHTML(db.sales.find(x=>x.id==='${s.id}')))">Imprimer</button><button class="btn" onclick="downloadInvoice('${s.id}')">Partager la facture</button></div>`, true);
 }
@@ -1615,11 +1658,11 @@ async function deleteExpense(id) { if (!await uiConfirm('Supprimer cette dépens
 views.reports = () => {
   const from = rep.from || today().slice(0, 8) + '01', to = rep.to || today(), inR = d => d >= from && d <= to;
   const S = db.sales.filter(s => inR(s.date)), A = db.purchases.filter(a => inR(a.date)), E = db.expenses.filter(e => inR(e.date)), P = db.payments.filter(p => inR(p.date));
-  const ca = sum(S, s => s.total), cost = sum(S, s => sum(s.items, i => i.cost * i.qty)), gross = sum(S, saleProfit), exp = sum(E, e => e.amount);
+  const ca = sum(S, s => s.total), cost = sum(S, s => sum(s.items, i => i.cost * i.qty)), gross = earnedBetween(from, to), waitR = sum(S, x => Math.max(0, salePending(x))), exp = sum(E, e => e.amount);
   const cashIn = sum(S, s => s.paid) + sum(P.filter(p => p.type === 'client'), p => p.amount);
   const cashOut = sum(A, a => a.paid) + sum(P.filter(p => p.type === 'supplier'), p => p.amount) + exp;
   const top = {};
-  S.forEach(s => s.items.forEach(i => { const k = i.productId; top[k] = top[k] || {name:i.name, q:0, ca:0, pr:0}; top[k].q += i.qty; top[k].ca += i.qty * i.price; top[k].pr += (i.price - i.cost) * i.qty; }));
+  S.forEach(s => s.items.forEach(i => { const k = i.productId; top[k] = top[k] || {name:i.name, q:0, ca:0, pr:0}; top[k].q += i.qty; top[k].ca += i.qty * i.price; top[k].pr += (i.price - i.cost) * i.qty * saleRatio(s); }));
   const topL = Object.values(top).sort((a, b) => b.pr - a.pr).slice(0, 15);
   const byCat = {}; E.forEach(e => byCat[e.category] = (byCat[e.category] || 0) + e.amount);
   return `<h1>Rapports</h1>
@@ -1630,7 +1673,8 @@ views.reports = () => {
   <div class="stats">
     <div class="stat"><div class="l">Chiffre d'affaires</div><div class="v">${fmt(ca)}</div><div class="s">${S.length} vente(s)</div></div>
     <div class="stat"><div class="l">Coût des produits vendus</div><div class="v">${fmt(cost)}</div></div>
-    <div class="stat"><div class="l">Bénéfice brut</div><div class="v pos">${fmt(gross)}</div></div>
+    <div class="stat"><div class="l">Bénéfice brut</div><div class="v pos">${fmt(gross)}</div><div class="s">${L('argent reçu sur la période', 'على الفلوس اللي دخلات')}</div></div>
+    <div class="stat"><div class="l">${L('Bénéfice en attente', 'ربح كيتسنى')}</div><div class="v warn">${fmt(waitR)}</div><div class="s">${L('ventes à crédit pas encore payées', 'مبيعات بالكريدي ما تخلصاتش')}</div></div>
     <div class="stat"><div class="l">Dépenses</div><div class="v neg">${fmt(exp)}</div></div>
     <div class="stat"><div class="l">Bénéfice net</div><div class="v ${gross - exp >= 0 ? 'pos' : 'neg'}">${fmt(gross - exp)}</div></div>
     <div class="stat"><div class="l">Achats</div><div class="v">${fmt(sum(A, a => a.total))}</div><div class="s">${A.length} achat(s)</div></div>
@@ -1710,12 +1754,13 @@ function sheetTables() {
       {title: L('💡 Chiffres clés', '💡 الأرقام الكبار'), cols: kv, rows: [
         [L("Ventes aujourd'hui", 'مبيعات اليوم'), sum(db.sales.filter(s => s.date === t), s => s.total)],
         [L('Ventes ce mois', 'مبيعات هاد الشهر'), sum(sM, s => s.total)],
-        [L('Bénéfice net du mois', 'الربح الصافي ديال الشهر'), sum(sM, saleProfit) - expM],
+        [L('Bénéfice net du mois', 'الربح الصافي ديال الشهر'), earnedBetween(m + '-01', m + '-31') - expM],
         [L('Valeur du stock (prix d\'achat)', 'قيمة المخزون (بثمن الشرا)'), sum(db.products, p => p.qty * p.buy)],
         [L('Crédit clients (on vous doit)', 'كريدي الزبناء (اللي ليك)'), sum(cl.filter(x => x.b > 0), x => x.b)],
         [L('Dettes fournisseurs (vous devez)', 'ديون المزودين (اللي عليك)'), sum(su.filter(x => x.b > 0), x => x.b)],
         [L('Total des ventes', 'مجموع المبيعات'), sum(db.sales, s => s.total)],
-        [L('Bénéfice brut total', 'مجموع الربح الخام'), sum(db.sales, saleProfit)],
+        [L('Bénéfice brut total (reçu)', 'مجموع الربح الخام (اللي دخل)'), sum(db.sales, saleEarned)],
+        [L('Bénéfice en attente (crédit)', 'ربح كيتسنى (كريدي)'), sum(db.sales, x => Math.max(0, salePending(x)))],
         [L('Total des dépenses', 'مجموع المصاريف'), sum(db.expenses, e => e.amount)]]},
       {title: L('👤 Clients qui doivent', '👤 زبناء عليهم الكريدي'), cols: [cT(L('Client', 'الزبون')), cT(L('Téléphone', 'التيليفون')), cM(L('Reste à payer', 'الباقي'))],
         rows: cl.filter(x => x.b > 0.009).sort((a, b) => b.b - a.b).map(x => [x.c.name, x.c.phone || '', x.b]), total: 1},
@@ -1728,7 +1773,7 @@ function sheetTables() {
     {name: L('🧾 Ventes', '🧾 المبيعات'), title: L('🧾 Ventes', '🧾 المبيعات'), color: '#00C091', sections: [{cols: [
       cD(L('Date', 'التاريخ')), cT(L('N°', 'الرقم')), cT(L('Client', 'الزبون')), cT(L('Articles', 'السلع')), cT(L('N° série', 'الرقم التسلسلي')), cT(L('Mode', 'طريقة الأداء')),
       cM(L('Total', 'المجموع')), cM(L('Payé', 'المخلص')), cM(L('Reste', 'الباقي')), cM(L('Bénéfice', 'الربح'))],
-      rows: byDate(db.sales).map(s => [s.date, s.num, client(s.clientId)?.name || L('Client passager', 'زبون عابر'), items(s), s.items.map(i => i.serial).filter(Boolean).join(' · '), tr(s.method || ''), s.total, s.paid, s.total - s.paid, saleProfit(s)]), total: 1}]},
+      rows: byDate(db.sales).map(s => [s.date, s.num, client(s.clientId)?.name || L('Client passager', 'زبون عابر'), items(s), s.items.map(i => i.serial).filter(Boolean).join(' · '), tr(s.method || ''), s.total, s.paid, s.total - s.paid, saleEarned(s)]), total: 1}]},
     {name: L('📦 Achats', '📦 المشتريات'), title: L('📦 Achats', '📦 المشتريات'), color: '#7a8bb0', sections: [{cols: [
       cD(L('Date', 'التاريخ')), cT(L('N°', 'الرقم')), cT(L('Fournisseur', 'المزود')), cT(L('Articles', 'السلع')), cT(L('Mode', 'طريقة الأداء')), cM(L('Total', 'المجموع')), cM(L('Payé', 'المخلص')), cM(L('Reste', 'الباقي'))],
       rows: byDate(db.purchases).map(a => [a.date, a.num, supplier(a.supplierId)?.name || '', a.items.map(i => i.qty + '× ' + i.name + ' @ ' + i.price).join(' · '), tr(a.method || ''), a.total, a.paid, a.total - a.paid]), total: 1}]},
