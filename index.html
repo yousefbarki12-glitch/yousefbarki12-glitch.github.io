@@ -363,6 +363,22 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 .sday:first-child{margin-top:6px}
 .scard{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden;border-inline-start:4px solid var(--accent-2)}
 .scard.due{border-inline-start-color:var(--bad)}
+button.stat.tap{position:relative;display:block;width:100%;text-align:start;font:inherit;color:inherit;cursor:pointer;border:0;box-shadow:var(--shadow)}
+button.stat.tap:active{transform:scale(.98)}
+button.stat.tap .chev{position:absolute;top:14px;inset-inline-end:12px;color:var(--muted)}
+[dir=rtl] button.stat.tap .chev{transform:scaleX(-1)}
+.dav{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;font:800 15px var(--f-head)}
+.dav.red{background:var(--bad-soft);color:var(--bad)} .dav.orange{background:var(--warn-soft);color:var(--warn)}
+.scard-total.neg{color:var(--bad)} .scard-total.warn{color:var(--warn)}
+.scard-info a{color:var(--accent);text-decoration:none}
+.dlist{background:var(--panel2);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:4px}
+.dlist-h{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:4px 6px}
+.dline{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;border:0;background:var(--panel);border-radius:10px;padding:8px 10px;font:inherit;color:var(--fg);text-align:start;cursor:pointer}
+.dline span{display:flex;flex-direction:column;min-width:0}
+.dline b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dline small{font-size:12px;color:var(--muted)}
+.dline-r{align-items:flex-end;flex-shrink:0;font-weight:700;color:var(--bad);font-variant-numeric:tabular-nums}
+#mbody .ssum{margin-bottom:8px}
 .scard.low{border-inline-start-color:var(--warn)}
 .spill.warn{background:var(--warn-soft);color:var(--warn)}
 .catchips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:10px -16px 0;padding:2px 16px}
@@ -797,7 +813,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '24'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '25'; // à changer avec CACHE dans sw.js
 const NUM = 'type="number" inputmode="decimal" step="0.01"';
 /* Champs numériques : un 0 n'est pas écrit (le 0 gris du placeholder suffit) ; les quantités valent 1 par défaut */
 function blankZeros(root) {
@@ -1040,8 +1056,8 @@ views.dashboard = () => {
     <button onclick="newPayment('supplier')"><span class="ic">${IC.truck}</span>${L('Payer', 'خلص')}</button>
   </div>
   <div class="stats">
-    <div class="stat"><div class="l">Crédit clients</div><div class="v neg">${fmt(sum(cl, x => x.b))}</div><div class="s">${cl.length} client(s) doivent</div></div>
-    <div class="stat"><div class="l">Dettes fournisseurs</div><div class="v warn">${fmt(sum(su, x => x.b))}</div><div class="s">${su.length} fournisseur(s)</div></div>
+    <button type="button" class="stat tap" onclick="openDebts('client')"><div class="l">Crédit clients</div><div class="v neg">${fmt(sum(cl, x => x.b))}</div><div class="s">${cl.length} client(s) doivent</div>${chev}</button>
+    <button type="button" class="stat tap" onclick="openDebts('supplier')"><div class="l">Dettes fournisseurs</div><div class="v warn">${fmt(sum(su, x => x.b))}</div><div class="s">${su.length} fournisseur(s)</div>${chev}</button>
     <div class="stat"><div class="l">Valeur du stock</div><div class="v">${fmt(sum(db.products, p => p.qty * p.buy))}</div><div class="s">${sum(db.products, p => p.qty)} pièce(s)</div></div>
     <div class="stat"><div class="l">${L('Dépenses du mois', 'مصاريف الشهر')}</div><div class="v">${fmt(expM)}</div><div class="s">${L('Bénéfice brut', 'الربح الخام')} ${fmt(profitM)}</div></div>
   </div>
@@ -1053,6 +1069,38 @@ views.dashboard = () => {
   ${list([...db.sales].reverse().slice(0, 6).map(s => { const r = s.total - s.paid; return li(r > 0.009 ? 'red' : 'green', IC.sale.replace('<svg', '<svg width="20" height="20"'), esc(client(s.clientId)?.name || 'Client passager'), s.num + ' · ' + fdate(s.date), fmt(s.total), '', `showSale('${s.id}')`); }), 'Aucune vente')}
   ${low.length ? sect('Stock faible', 'stock') + list(low.map(p => li(p.qty <= 0 ? 'red' : 'orange', p.qty, esc(p.name), esc([p.cpu, p.ram, p.storage].filter(Boolean).join(' / ')) || '&nbsp;', L('Seuil', 'الحد') + ' ' + num(p.minQty), 'muted', `editProduct('${p.id}')`)), '') : ''}`;
 };
+
+/* ---------- Accueil : liste des crédits clients / dettes fournisseurs ---------- */
+function openDebts(type) {
+  const isC = type === 'client', people = isC ? db.clients : db.suppliers;
+  const rows = people.map(x => ({x, b: balance(type, x.id)})).filter(r => r.b > 0.009).sort((a, b) => b.b - a.b);
+  const docs = isC ? db.sales : db.purchases, key = isC ? 'clientId' : 'supplierId';
+  const tel = ph => String(ph || '').replace(/[^\d+]/g, '');
+  const card = ({x, b}) => {
+    const open = docs.filter(d => d[key] === x.id && d.total - d.paid > 0.009).sort((a, c) => c.date.localeCompare(a.date));
+    const pays = db.payments.filter(p => p.type === type && p.partyId === x.id).sort((a, c) => c.date.localeCompare(a.date));
+    const lastDoc = docs.filter(d => d[key] === x.id).sort((a, c) => c.date.localeCompare(a.date))[0];
+    return `<details class="scard ${isC ? 'due' : 'low'}">
+      <summary class="scard-top"><span class="dav ${isC ? 'red' : 'orange'}">${esc((String(x.name || '?').trim()[0] || '?').toUpperCase())}</span><span class="scard-title">${esc(x.name)}</span><b class="scard-total ${isC ? 'neg' : 'warn'}">${fmt(b)}</b><svg class="scard-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+      <div class="scard-body">
+        <dl class="scard-info">
+          <div><dt>${L('Téléphone', 'التيليفون')}</dt><dd>${x.phone ? `<a href="tel:${tel(x.phone)}">${esc(x.phone)}</a>` : '—'}</dd></div>
+          <div><dt>${isC ? 'CIN' : 'ICE / RC'}</dt><dd>${esc(x.cin) || '—'}</dd></div>
+          ${x.address ? `<div style="grid-column:1/-1"><dt>${L('Adresse', 'العنوان')}</dt><dd>${esc(x.address)}</dd></div>` : ''}
+          ${num(x.opening) > 0 ? `<div><dt>${isC ? L("Crédit d'avant", 'كريدي قديم') : L("Dette d'avant", 'دين قديم')}</dt><dd>${fmt(x.opening)}</dd></div>` : ''}
+          <div><dt>${isC ? L('Dernier achat', 'آخر شرا') : L('Dernière livraison', 'آخر سلعة')}</dt><dd>${lastDoc ? fdate(lastDoc.date) : '—'}</dd></div>
+          <div><dt>${L('Dernier paiement', 'آخر خلاص')}</dt><dd>${pays[0] ? `${fmt(pays[0].amount)}<small class="muted"> · ${fdate(pays[0].date)}</small>` : '—'}</dd></div>
+        </dl>
+        ${open.length ? `<div class="dlist"><div class="dlist-h">${isC ? L('Ventes non payées', 'مبيعات ما تخلصاتش') : L('Achats non payés', 'شريات ما تخلصاتش')} (${open.length})</div>${open.map(d => `<button type="button" class="dline" onclick="${isC ? `showSale('${d.id}')` : `go('purchases')`}"><span><b>${esc(String((d.items[0] || {}).name || '').split(' · ')[0])}${d.items.length > 1 ? ` <small>+${d.items.length - 1}</small>` : ''}</b><small>${d.num} · ${fdate(d.date)}</small></span><span class="dline-r">${fmt(d.total - d.paid)}<small>${L('sur', 'من')} ${fmt(d.total)}</small></span></button>`).join('')}</div>` : ''}
+        <div class="scard-actions">${x.phone ? `<a class="btn sm sec" href="tel:${tel(x.phone)}">${L('Appeler', 'عيّط')}</a>` : ''}<button class="btn sm sec" onclick="statement('${type}','${x.id}')">${L('Relevé', 'الكشف')}</button><button class="btn sm ${isC ? 'green' : ''}" onclick="newPayment('${type}','${x.id}')">${isC ? L('Encaisser', 'استلم') : L('Payer', 'خلص')}</button></div>
+      </div>
+    </details>`;
+  };
+  const total = sum(rows, r => r.b);
+  openModal(isC ? 'Crédit clients' : 'Dettes fournisseurs', `
+    <div class="ssum"><div><span>${isC ? L('On vous doit', 'اللي ليك') : L('Vous devez', 'اللي عليك')}</span><b class="${isC ? 'neg' : 'warn'}">${fmt(total)}</b></div><div><span>${isC ? L('Clients', 'الزبناء') : L('Fournisseurs', 'المزودين')}</span><b>${rows.length}</b></div></div>
+    ${rows.length ? `<div class="slist">${rows.map(card).join('')}</div>` : `<div class="tablewrap"><div class="empty">${isC ? L('Aucun client ne vous doit 👍', 'حتى زبون ما عليه كريدي 👍') : L('Vous ne devez rien aux fournisseurs 👍', 'ما عليك والو للمزودين 👍')}</div></div>`}`);
+}
 
 /* ---------- STOCK ---------- */
 const STOCK_SORTS = [
