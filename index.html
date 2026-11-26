@@ -378,8 +378,10 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 #eyeBtn.on{background:var(--accent);color:#fff}
 #eyeBtn.on .eye-on{display:none} #eyeBtn.on .eye-off{display:block}
 .hideamt .sens,.hideamt .hero .hv,.hideamt .hero .chip b,.hideamt .hero .chip small,.hideamt .stats .v,.hideamt .stats .s,.hideamt .ssum b,.hideamt .ssum small,
-.hideamt .bighero>b,.hideamt .bighero small,.hideamt .mamt,.hideamt .list .amt,.hideamt .pwait,.hideamt #view .tablewrap td.n,.hideamt .dline-r,.hideamt .planchip b,.hideamt #d_info b
-{filter:blur(8px);user-select:none;-webkit-user-select:none;pointer-events:none}
+.hideamt .bighero>b,.hideamt .bighero small,.hideamt .mamt,.hideamt .list .amt,.hideamt .pwait,.hideamt #view .tablewrap td.n,.hideamt .dline-r,.hideamt .planchip b,.hideamt #d_info b{visibility:hidden;position:relative;user-select:none;-webkit-user-select:none}
+.hideamt .sens::after,.hideamt .hero .hv::after,.hideamt .hero .chip b::after,.hideamt .hero .chip small::after,.hideamt .stats .v::after,.hideamt .stats .s::after,.hideamt .ssum b::after,.hideamt .ssum small::after,.hideamt .bighero>b::after,.hideamt .bighero small::after,.hideamt .mamt::after,.hideamt .list .amt::after,.hideamt .pwait::after,.hideamt #view .tablewrap td.n::after,.hideamt .dline-r::after,.hideamt .planchip b::after,.hideamt #d_info b::after{content:"****";visibility:visible;position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:inherit;white-space:nowrap;letter-spacing:.12em;font-weight:800;color:var(--muted)}
+.hideamt .hero .hv::after,.hideamt .hero .chip b::after,.hideamt .bighero>b::after,.hideamt .hero .chip small::after,.hideamt .bighero small::after{color:#fff;opacity:.85}
+.hideamt #view .tablewrap td.n::after,.hideamt .mamt::after,.hideamt .dline-r::after,.hideamt .list .amt::after{text-align:end}
 .notifs{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
 .notif{display:flex;align-items:center;gap:10px;background:#fff4e5;color:#7a4300;border-radius:14px;padding:10px 10px 10px 12px;box-shadow:inset 0 0 0 1.5px #f5a524;font-size:14px;line-height:1.35}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .notif{background:#3a2a10;color:#ffd08a}}
@@ -868,7 +870,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '32'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '33'; // à changer avec CACHE dans sw.js
 /* Mode discret : l'œil en haut cache le bénéfice, les prix d'achat et les totaux (quand un client regarde l'écran) */
 let HIDE = false; try { HIDE = localStorage.getItem('hideAmounts') === '1'; } catch (e) {}
 function applyHide() { document.documentElement.classList.toggle('hideamt', HIDE); const b = document.getElementById('eyeBtn'); if (b) { b.classList.toggle('on', HIDE); b.setAttribute('aria-label', HIDE ? L('Afficher les montants', 'بيّن المبالغ') : L('Cacher les montants', 'خبي المبالغ')); } }
