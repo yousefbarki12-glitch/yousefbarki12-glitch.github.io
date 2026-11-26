@@ -870,7 +870,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '36'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '37'; // à changer avec CACHE dans sw.js
 /* Mode discret : l'œil en haut cache le bénéfice, les prix d'achat et les totaux (quand un client regarde l'écran) */
 let HIDE = false; try { HIDE = localStorage.getItem('hideAmounts') === '1'; } catch (e) {}
 function applyHide() { document.documentElement.classList.toggle('hideamt', HIDE); const b = document.getElementById('eyeBtn'); if (b) { b.classList.toggle('on', HIDE); b.setAttribute('aria-label', HIDE ? L('Afficher les montants', 'بيّن المبالغ') : L('Cacher les montants', 'خبي المبالغ')); } }
@@ -1131,7 +1131,7 @@ views.dashboard = () => {
   const sT = db.sales.filter(s => s.date === t), sM = db.sales.filter(s => s.date.startsWith(m));
   const expM = sum(db.expenses.filter(e => e.date.startsWith(m)), e => e.amount), profitM = r2(earnedBetween(m + '-01', m + '-31') + extraBetween(m + '-01', m + '-31'));
   const waitP = sum(db.sales, x => Math.max(0, salePending(x)));
-  const accM = accChargedBetween(m + '-01', m + '-31'), ownM = ownerNetBetween(m + '-01', m + '-31'), ownO = ownerOwed(), accO = accInfo().owed;
+  const accM = accPaidBetween(m + '-01', m + '-31'), ownM = ownerNetBetween(m + '-01', m + '-31'), ownO = ownerOwed(), accO = accInfo().owed;
   const cl = db.clients.map(c => ({c, b:clientBalance(c.id)})).filter(x => x.b > 0.009).sort((a, b) => b.b - a.b);
   const su = db.suppliers.map(s => ({s, b:supplierBalance(s.id)})).filter(x => x.b > 0.009).sort((a, b) => b.b - a.b);
   const low = db.products.filter(p => p.qty <= num(p.minQty) && (p.qty > 0 || num(p.minQty) > 0));
@@ -1167,7 +1167,7 @@ views.dashboard = () => {
     <div class="stat"><div class="l">Valeur du stock</div><div class="v">${fmt(sum(db.products, p => p.qty * p.buy))}</div><div class="s">${sum(db.products, p => p.qty)} pièce(s)</div></div>
     <div class="stat"><div class="l">${L('Dépenses du mois', 'مصاريف الشهر')}</div><div class="v">${fmt(expM)}</div><div class="s">${L('Bénéfice brut', 'الربح الخام')} ${fmt(profitM)}</div></div>
     <button type="button" class="stat tap" onclick="go('owner')"><div class="l">${L('Mon crédit', 'الكريدي ديالي')}</div><div class="v ${ownO > 0.009 ? 'neg' : ''}">${fmt(Math.max(0, ownO))}</div><div class="s">${L('je dois à la caisse', 'كنسال للصندوق')}</div>${chev}</button>
-    <button type="button" class="stat tap" onclick="go('accountant')"><div class="l">${L('Comptable', 'المحاسب')}</div><div class="v ${accO > 0.009 ? 'warn' : ''}">${fmt(Math.max(0, accO))}</div><div class="s">${L('je lui dois', 'كنسالو')}${accM > 0 ? ` · ${L('retiré ce mois', 'نقص هاد الشهر')} ${fmt(accM)}` : ''}</div>${chev}</button>
+    <button type="button" class="stat tap" onclick="go('accountant')"><div class="l">${L('Comptable', 'المحاسب')}</div><div class="v ${accO > 0.009 ? 'warn' : ''}">${fmt(Math.max(0, accO))}</div><div class="s">${L('je lui dois', 'كنسالو')}${accM > 0 ? ` · ${L('payé ce mois', 'خلصت هاد الشهر')} ${fmt(accM)}` : ''}</div>${chev}</button>
   </div>
   ${sect('Clients qui doivent', 'clients')}
   ${list(cl.slice(0, 6).map(x => li('red', ini(x.c.name), esc(x.c.name), esc(x.c.phone) || '&nbsp;', fmt(x.b), 'neg', `statement('client','${x.c.id}')`)), 'Aucun crédit client')}
@@ -1785,7 +1785,7 @@ async function delMove(arr, id) { if (!await uiConfirm(L('Supprimer cette ligne 
 
 /* ---------- COMPTABLE ---------- */
 // Honoraires automatiques : chaque année, à la fin des mois du plan (ex. fin juin 1000 DH, fin décembre 1000 + 1000 DH).
-// Le jour où ils sont dus, ils sont retirés du bénéfice et ajoutés à ce que vous devez. Vous pouvez payer quand vous voulez.
+// Le jour où ils sont dus, ils s'ajoutent à ce que vous lui devez (+ notification). Le bénéfice ne baisse que quand vous le payez.
 const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
 const monthName = m => L(MONTHS_FR[m - 1], MONTHS_AR[m - 1]);
@@ -1808,7 +1808,7 @@ function accInfo() {
   const fees = sum(auto, c => c.amount), ex = sum(extra, x => x.amount), paid = sum(db.accMoves.filter(x => x.type === 'pay'), x => x.amount);
   return {fees, extra: ex, paid, owed: r2(fees + ex - paid), count: auto.length};
 }
-// Ce qui est retiré du bénéfice sur une période : honoraires dus + frais ajoutés (pas les paiements, sinon on compterait deux fois)
+// Honoraires dus + frais ajoutés sur une période (ce qu'il réclame ; ne touche pas le bénéfice)
 // (jamais dans le futur : une échéance du 31 ne compte pas avant le 31)
 const accChargedBetween = (from, to) => { const t = today(); if (to > t) to = t; return r2(sum(accCharges(to).filter(c => c.date >= from), c => c.amount) + sum(db.accMoves.filter(x => x.type === 'fee' && x.date >= from && x.date <= to), x => x.amount)); };
 const accPaidBetween = (from, to) => r2(sum(db.accMoves.filter(x => x.type === 'pay' && x.date >= from && x.date <= to), x => x.amount));
@@ -1827,8 +1827,9 @@ function checkNotifs() {
   if (added) save();
 }
 function notifText(n) {
-  if (n.kind === 'acc') return `${L('Comptable', 'المحاسب')} : <b>${fmt(n.amount)}</b> ${L('retirés du bénéfice', 'نقصو من الربح')} (${L('échéance du', 'أجل')} ${fdate(n.date)})`;
-  if (n.kind === 'accFee') return `${L('Comptable', 'المحاسب')} : <b>${fmt(n.amount)}</b> ${L('de frais retirés du bénéfice', 'ديال المصاريف نقصو من الربح')}${n.note ? ' · ' + esc(n.note) : ''}`;
+  if (n.kind === 'acc') return `${L('Le comptable attend', 'المحاسب كيتسنى')} <b>${fmt(n.amount)}</b> (${L('échéance du', 'أجل')} ${fdate(n.date)}) · ${L('vous lui devez', 'كتسالو')} <b>${fmt(Math.max(0, accInfo().owed))}</b>`;
+  if (n.kind === 'accFee') return `${L('Comptable', 'المحاسب')} : <b>${fmt(n.amount)}</b> ${L('de frais ajoutés à ce que vous lui devez', 'ديال المصاريف تزادو على داكشي اللي كتسالو')}${n.note ? ' · ' + esc(n.note) : ''}`;
+  if (n.kind === 'accPay') return `${L('Comptable payé', 'خلصت المحاسب')} : <b>${fmt(n.amount)}</b> ${L('retirés du bénéfice', 'نقصو من الربح')}`;
   if (n.kind === 'take') return `${L('Mon crédit', 'الكريدي ديالي')} : <b>${fmt(n.amount)}</b> ${L('pris de la caisse, retirés des ventes du mois', 'خديتهم من الصندوق، نقصو من مبيعات الشهر')}`;
   return esc(n.text || '');
 }
@@ -1836,7 +1837,7 @@ function notifsHTML() {
   const list = (db.notifs || []).slice().sort((a, b) => b.date.localeCompare(a.date));
   if (!list.length) return '';
   const shown = list.slice(0, 3);
-  return `<div class="notifs">${shown.map(n => `<div class="notif"><span class="notif-ic">!</span><span class="notif-t">${notifText(n)}</span>${n.kind === 'acc' || n.kind === 'accFee' ? `<button class="notif-go" onclick="go('accountant')">${L('Voir', 'شوف')}</button>` : ''}<button class="notif-x" onclick="closeNotif('${n.id}')" aria-label="${L('Fermer', 'سد')}">×</button></div>`).join('')}${list.length > 3 ? `<button class="notif-all" onclick="closeAllNotifs()">${L('Tout fermer', 'سد كلشي')} (${list.length})</button>` : ''}</div>`;
+  return `<div class="notifs">${shown.map(n => `<div class="notif"><span class="notif-ic">!</span><span class="notif-t">${notifText(n)}</span>${n.kind === 'acc' || n.kind === 'accFee' || n.kind === 'accPay' ? `<button class="notif-go" onclick="go('accountant')">${L('Voir', 'شوف')}</button>` : ''}<button class="notif-x" onclick="closeNotif('${n.id}')" aria-label="${L('Fermer', 'سد')}">×</button></div>`).join('')}${list.length > 3 ? `<button class="notif-all" onclick="closeAllNotifs()">${L('Tout fermer', 'سد كلشي')} (${list.length})</button>` : ''}</div>`;
 }
 function closeNotif(id) { db.notifs = db.notifs.filter(n => n.id !== id); save(); render(); }
 function closeAllNotifs() { db.notifs = []; save(); render(); }
@@ -1857,7 +1858,7 @@ views.accountant = () => {
   ${planTxt ? `<div class="planrow">${planTxt}<span class="planchip muted">${L('chaque année', 'كل عام')}${a.since ? ' · ' + L('depuis', 'من') + ' ' + fdate(a.since) : ''}</span></div>` : ''}
   <div class="twobtn"><button class="btn" onclick="accMove('pay')">${L('Payer le comptable', 'خلص المحاسب')}</button><button class="btn sec" onclick="accMove('fee')">+ ${L('Autres frais', 'مصاريف أخرى')}</button></div>
   <div class="ssum"><div><span>${L('Honoraires dus', 'الأجرة اللي حلات')}</span><b>${fmt(i.fees)}</b>${i.count ? `<small class="muted">${i.count} ${L('échéance(s)', 'آجال')}</small>` : ''}</div><div><span>${L('Autres frais', 'مصاريف أخرى')}</span><b>${fmt(i.extra)}</b></div><div><span>${L('Total payé', 'مجموع اللي خلصت')}</span><b class="pos">${fmt(i.paid)}</b></div><div><span>${L('Payé ce mois', 'خلصت هاد الشهر')}</span><b>${fmt(sum(db.accMoves.filter(x => x.type === 'pay' && x.date.startsWith(m)), x => x.amount))}</b></div></div>
-  <p class="note">${L("Les honoraires et les frais sont retirés du bénéfice le jour où ils sont dus. Les paiements diminuent seulement ce que vous lui devez.", 'الأجرة والمصاريف كينقصو من الربح نهار كيحلو. الخلاص كينقص غير داكشي اللي كتسالو.')}</p>
+  <p class="note">${L("Quand une échéance arrive, vous recevez une notification et elle s'ajoute à ce que vous lui devez. Le bénéfice baisse seulement le jour où vous le payez.", 'ملي كيحل الأجل، كتجيك نوتيفيكاسيون وكيتزاد على داكشي اللي كتسالو. الربح كينقص غير نهار كتخلصو.')}</p>
   <h3 class="sday">${L('Historique', 'السجل')}</h3>
   ${list.length ? `<div class="mlist">${shown.map(x => `<div class="mrow"><span class="mic ${rowIc(x)[0]}">${rowIc(x)[1]}</span><span class="mmid"><b>${rowName(x)}</b><small>${fdate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</small></span><b class="mamt ${x.type === 'pay' ? 'pos' : 'neg'}">${fmt(x.amount)}</b>${x.type === 'auto' ? '<span class="mlock" title="auto">⏱</span>' : `<button class="btn sm red" onclick="delMove('accMoves','${x.id}')" aria-label="${L('Supprimer', 'مسح')}">×</button>`}</div>`).join('')}</div>${moreBtn('accountant', list.length, shown.length)}` : `<div class="tablewrap"><div class="empty">${L('Rien pour le moment.', 'ما كاين والو دابا.')}</div></div>`}`;
 };
@@ -1873,7 +1874,7 @@ function editAccountant() {
     <div class="full"><label>${L('Honoraires chaque année', 'الأجرة كل عام')}</label><div id="planList">${(a.plan || []).map(planRowHTML).join('')}</div>
       <button type="button" class="btn sm sec" style="margin-top:6px" onclick="$('#planList').insertAdjacentHTML('beforeend', planRowHTML({m:12, amount:1000}))">+ ${L('Ajouter une échéance', 'زيد أجل')}</button></div>
     <div class="full"><label for="f_since">${L('Compter à partir du', 'نحسبو من')}</label><input id="f_since" type="date" value="${a.since || today()}"></div>
-    <div class="full note">${L("À la fin de chaque mois choisi, le montant est retiré du bénéfice automatiquement et vous recevez une notification.", 'ف آخر كل شهر مختار، المبلغ كينقص من الربح أوتوماتيك وكتجيك نوتيفيكاسيون.')}</div>
+    <div class="full note">${L("À la fin de chaque mois choisi, vous recevez une notification et le montant s'ajoute à ce que vous lui devez. Le bénéfice baisse quand vous le payez.", 'ف آخر كل شهر مختار، كتجيك نوتيفيكاسيون والمبلغ كيتزاد على داكشي اللي كتسالو. الربح كينقص ملي تخلصو.')}</div>
   </div><div class="mfoot"><button class="btn sec" onclick="closeModal()">${L('Annuler', 'إلغاء')}</button><button class="btn" onclick="saveAccountant()">${L('Enregistrer', 'سجّل')}</button></div>`);
 }
 function saveAccountant() {
@@ -1895,7 +1896,7 @@ function accMove(type) {
 function saveAccMove(type) {
   const amount = num(val('f_amount')); if (amount <= 0) return uiAlert(L('Entrez un montant supérieur à 0.', 'دخل مبلغ كثر من 0.'));
   db.accMoves.push({id: uid(), type, amount, date: validDate(val('f_date')), method: type === 'pay' ? val('f_method') : '', note: val('f_note'), at: Date.now()});
-  if (type === 'fee') addNotif('accFee', amount, val('f_note'));
+  addNotif(type === 'fee' ? 'accFee' : 'accPay', amount, val('f_note'));
   save(); closeModal(); render(); toast(L('Enregistré', 'تسجل'));
 }
 
@@ -1903,7 +1904,7 @@ function saveAccMove(type) {
 views.reports = () => {
   const from = rep.from || today().slice(0, 8) + '01', to = rep.to || today(), inR = d => d >= from && d <= to;
   const S = db.sales.filter(s => inR(s.date)), A = db.purchases.filter(a => inR(a.date)), E = db.expenses.filter(e => inR(e.date)), P = db.payments.filter(p => inR(p.date));
-  const ca = sum(S, s => s.total), cost = sum(S, s => sum(s.items, i => i.cost * i.qty)), extraR = extraBetween(from, to), gross = r2(earnedBetween(from, to) + extraR), waitR = sum(S, x => Math.max(0, salePending(x))), exp = sum(E, e => e.amount), accR = accChargedBetween(from, to), ownR = ownerNetBetween(from, to), net = r2(gross - exp - accR);
+  const ca = sum(S, s => s.total), cost = sum(S, s => sum(s.items, i => i.cost * i.qty)), extraR = extraBetween(from, to), gross = r2(earnedBetween(from, to) + extraR), waitR = sum(S, x => Math.max(0, salePending(x))), exp = sum(E, e => e.amount), accR = accPaidBetween(from, to), ownR = ownerNetBetween(from, to), net = r2(gross - exp - accR);
   const cashIn = sum(S, s => s.paid) + sum(P.filter(p => p.type === 'client'), p => p.amount);
   const cashOut = sum(A, a => a.paid) + sum(P.filter(p => p.type === 'supplier'), p => p.amount) + exp;
   const top = {};
@@ -1921,7 +1922,7 @@ views.reports = () => {
     <div class="stat"><div class="l">Bénéfice brut</div><div class="v pos">${fmt(gross)}</div><div class="s">${L('argent reçu sur la période', 'على الفلوس اللي دخلات')}${extraR > 0 ? ` · ${L('dont autres bénéfices', 'منها أرباح أخرى')} ${fmt(extraR)}` : ''}</div></div>
     <div class="stat"><div class="l">${L('Bénéfice en attente', 'ربح كيتسنى')}</div><div class="v warn">${fmt(waitR)}</div><div class="s">${L('ventes à crédit pas encore payées', 'مبيعات بالكريدي ما تخلصاتش')}</div></div>
     <div class="stat"><div class="l">Dépenses</div><div class="v neg">${fmt(exp)}</div></div>
-    <div class="stat"><div class="l">${L('Comptable (honoraires)', 'المحاسب (الأجرة)')}</div><div class="v neg">${fmt(accR)}</div></div>
+    <div class="stat"><div class="l">${L('Comptable (payé)', 'المحاسب (اللي تخلص)')}</div><div class="v neg">${fmt(accR)}</div></div>
     <div class="stat"><div class="l">${L('Mon crédit (pris − rendu)', 'الكريدي ديالي (خديت − رجعت)')}</div><div class="v ${ownR > 0 ? 'neg' : 'pos'}">${fmt(ownR)}</div><div class="s">${L('retiré des ventes', 'نقص من المبيعات')} · ${L('ventes après', 'المبيعات من بعد')} ${fmt(ca - ownR)}</div></div>
     <div class="stat"><div class="l">Bénéfice net</div><div class="v ${net >= 0 ? 'pos' : 'neg'}">${fmt(net)}</div><div class="s">${L('brut − dépenses − comptable', 'الخام − المصاريف − المحاسب')}</div></div>
     <div class="stat"><div class="l">Achats</div><div class="v">${fmt(sum(A, a => a.total))}</div><div class="s">${A.length} achat(s)</div></div>
@@ -2001,7 +2002,7 @@ function sheetTables() {
       {title: L('💡 Chiffres clés', '💡 الأرقام الكبار'), cols: kv, rows: [
         [L("Ventes aujourd'hui", 'مبيعات اليوم'), sum(db.sales.filter(s => s.date === t), s => s.total)],
         [L('Ventes ce mois (moins mon crédit)', 'مبيعات هاد الشهر (ناقص الكريدي ديالي)'), sum(sM, s => s.total) - ownerNetBetween(m + '-01', m + '-31')],
-        [L('Bénéfice net du mois', 'الربح الصافي ديال الشهر'), earnedBetween(m + '-01', m + '-31') + extraBetween(m + '-01', m + '-31') - expM - accChargedBetween(m + '-01', m + '-31')],
+        [L('Bénéfice net du mois', 'الربح الصافي ديال الشهر'), earnedBetween(m + '-01', m + '-31') + extraBetween(m + '-01', m + '-31') - expM - accPaidBetween(m + '-01', m + '-31')],
         [L('Mon crédit (je dois à la caisse)', 'الكريدي ديالي (كنسال للصندوق)'), ownerOwed()],
         [L('Je dois au comptable', 'كنسال للمحاسب'), accInfo().owed],
         [L('Valeur du stock (prix d\'achat)', 'قيمة المخزون (بثمن الشرا)'), sum(db.products, p => p.qty * p.buy)],
