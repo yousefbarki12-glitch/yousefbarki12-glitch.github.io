@@ -363,6 +363,25 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 .sday:first-child{margin-top:6px}
 .scard{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden;border-inline-start:4px solid var(--accent-2)}
 .scard.due{border-inline-start-color:var(--bad)}
+/* Mon crédit / Comptable */
+.bighero{border-radius:20px;padding:18px;margin-bottom:12px;display:flex;flex-direction:column;gap:4px;color:#fff;background:linear-gradient(160deg,var(--hero-1),var(--hero-2));box-shadow:var(--shadow);position:relative;overflow:hidden}
+.bighero::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:6px;background:var(--accent-2)}
+.bighero.bad::before{background:#ff6b6b}
+.bighero span{font-size:13px;font-weight:600;opacity:.85}
+.bighero b{font:800 30px var(--f-head);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.bighero small{font-size:12px;opacity:.75;line-height:1.4}
+.twobtn{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.twobtn .btn{min-height:50px;font-size:15px;white-space:normal}
+.mlist{display:flex;flex-direction:column;gap:8px}
+.mrow{display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
+.mic{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font:800 18px var(--f-head);flex-shrink:0}
+.mic.bad{background:var(--bad-soft);color:var(--bad)} .mic.good{background:var(--good-soft);color:var(--good)}
+.mmid{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mmid b{font-size:15px} .mmid small{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.mmid a{color:var(--accent);text-decoration:none}
+.mamt{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:15px}
+.accbox{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow);margin-bottom:12px}
+.ssum small.muted{font-size:11px;text-transform:none;letter-spacing:0}
 .pwait{display:block;font-size:11.5px;font-weight:600;color:var(--warn);margin-top:2px}
 button.stat.tap{position:relative;display:block;width:100%;text-align:start;font:inherit;color:inherit;cursor:pointer;border:0;box-shadow:var(--shadow)}
 button.stat.tap:active{transform:scale(.98)}
@@ -623,6 +642,8 @@ const ETATS = ['Neuf','Occasion','Reconditionné'];
 const METHODS = ['Espèces','Virement','Chèque','Carte','Autre'];
 const EXP_CATS = ['Loyer','Électricité / Eau','Internet / Téléphone','Salaire','Transport','Réparation','Autre'];
 const IC = {
+  wallet:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h13v4"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 13.5h2"/></svg>',
+  calc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11v6M8 15h2M12 15h2"/></svg>',
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
   sale:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>',
   pc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>',
@@ -637,7 +658,7 @@ const IC = {
 };
 const TABS = [['dashboard','home','Accueil'],['sales','sale','Ventes'],['stock','pc','Stock'],['clients','users','Clients'],['more','more','Plus']];
 const MORE = [['purchases','box','Achats','Entrées de marchandise'],['suppliers','truck','Fournisseurs','Ce que vous devez'],['payments','cash','Paiements / Crédit','Encaisser ou payer une tranche'],
-  ['expenses','down','Dépenses','Loyer, électricité, salaires...'],['reports','chart','Rapports','Bénéfice par période'],['settings','gear','Paramètres & Sauvegarde','Magasin, export, import']];
+  ['expenses','down','Dépenses','Loyer, électricité, salaires...'],['owner','wallet','Mon crédit','Argent pris de la caisse'],['accountant','calc','Comptable','Honoraires et paiements'],['reports','chart','Rapports','Bénéfice par période'],['settings','gear','Paramètres & Sauvegarde','Magasin, export, import']];
 
 /* ================== OUTILS ================== */
 const $ = s => document.querySelector(s);
@@ -771,6 +792,7 @@ const AR = {
   'Fichier lié ✅ Chaque modification sera enregistrée automatiquement dans ce fichier.':'تربط الملف ✅ كل تبديل غادي يتسجل فيه أوتوماتيكيا.', 'Tapez EFFACER pour confirmer ':'كتب EFFACER باش تأكد',
   'Seulement ceux à payer ':'غير اللي خاصك تخلص', 'Historique : ':'السجل : ',
 };
+Object.assign(AR, {'Mon crédit':'الكريدي ديالي', 'Argent pris de la caisse':'الفلوس اللي خديت من الصندوق', 'Comptable':'المحاسب', 'Honoraires et paiements':'الأجرة والخلاص'});
 const AR_RX = [
   [/^(·\s*)?(\d+) vente\(s\)( ·)?$/, '$1$2 بيعة$3'], [/^(\d+) vente\(s\), (\d+) article\(s\)$/, '$1 بيعة، $2 سلعة'], [/^(\d+) achat\(s\)( ·)?$/, '$1 شرية$2'],
   [/^(·\s*)?(\d+) pièce\(s\)( · vente .+)?$/, (m, a, n, b) => (a || '') + n + ' قطعة' + (b ? b.replace(' · vente ', ' · بثمن البيع ') : '')],
@@ -814,7 +836,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '27'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '28'; // à changer avec CACHE dans sw.js
 const NUM = 'type="number" inputmode="decimal" step="0.01"';
 /* Champs numériques : un 0 n'est pas écrit (le 0 gris du placeholder suffit) ; les quantités valent 1 par défaut */
 function blankZeros(root) {
@@ -856,12 +878,12 @@ function toast(msg) { const t = $('#toast'); t.textContent = tr(msg); t.hidden =
 let db;
 function emptyDB() {
   return {settings:{shopName:'Mon Magasin PC', address:'', phone:'', ice:'', footer:'Merci pour votre confiance !'},
-    products:[], clients:[], suppliers:[], purchases:[], sales:[], payments:[], expenses:[], seq:{sale:0, purchase:0}, savedAt:0};
+    products:[], clients:[], suppliers:[], purchases:[], sales:[], payments:[], expenses:[], ownerMoves:[], accMoves:[], accountant:{name:'', phone:'', email:'', fee:0, since:''}, seq:{sale:0, purchase:0}, savedAt:0};
 }
 function normalize(d) {
   const e = emptyDB(); d = d && typeof d === 'object' ? d : {};
   for (const k in e) if (d[k] === undefined) d[k] = e[k];
-  d.settings = Object.assign(e.settings, d.settings); d.seq = Object.assign(e.seq, d.seq);
+  d.settings = Object.assign(e.settings, d.settings); d.seq = Object.assign(e.seq, d.seq); d.accountant = Object.assign(e.accountant, d.accountant);
   return d;
 }
 const hasData = d => d.products.length || d.clients.length || d.suppliers.length || d.sales.length || d.purchases.length;
@@ -1070,6 +1092,7 @@ views.dashboard = () => {
   const sT = db.sales.filter(s => s.date === t), sM = db.sales.filter(s => s.date.startsWith(m));
   const expM = sum(db.expenses.filter(e => e.date.startsWith(m)), e => e.amount), profitM = earnedBetween(m + '-01', m + '-31');
   const waitP = sum(db.sales, x => Math.max(0, salePending(x)));
+  const accM = accPaidBetween(m + '-01', m + '-31'), ownM = ownerNetBetween(m + '-01', m + '-31'), ownO = ownerOwed(), accO = accInfo().owed;
   const cl = db.clients.map(c => ({c, b:clientBalance(c.id)})).filter(x => x.b > 0.009).sort((a, b) => b.b - a.b);
   const su = db.suppliers.map(s => ({s, b:supplierBalance(s.id)})).filter(x => x.b > 0.009).sort((a, b) => b.b - a.b);
   const low = db.products.filter(p => p.qty <= num(p.minQty) && (p.qty > 0 || num(p.minQty) > 0));
@@ -1089,7 +1112,7 @@ views.dashboard = () => {
     <div class="hv">${amtN(sum(sT, s => s.total))} <small>${L('DH', 'درهم')}</small></div>
     <div class="chips">
       <div class="chip"><span>${L('Ventes ce mois', 'مبيعات الشهر')}</span><b>${fmt(sum(sM, s => s.total))}</b></div>
-      <div class="chip"><span>${L('Bénéfice net du mois', 'الربح الصافي ديال الشهر')}</span><b>${fmt(profitM - expM)}</b></div>
+      <div class="chip"><span>${L('Bénéfice net du mois', 'الربح الصافي ديال الشهر')}</span><b>${fmt(profitM - expM - accM - ownM)}</b></div>
     </div>
   </div>
   <div class="actions4">
@@ -1103,6 +1126,8 @@ views.dashboard = () => {
     <button type="button" class="stat tap" onclick="openDebts('supplier')"><div class="l">Dettes fournisseurs</div><div class="v warn">${fmt(sum(su, x => x.b))}</div><div class="s">${su.length} fournisseur(s)</div>${chev}</button>
     <div class="stat"><div class="l">Valeur du stock</div><div class="v">${fmt(sum(db.products, p => p.qty * p.buy))}</div><div class="s">${sum(db.products, p => p.qty)} pièce(s)</div></div>
     <div class="stat"><div class="l">${L('Dépenses du mois', 'مصاريف الشهر')}</div><div class="v">${fmt(expM)}</div><div class="s">${L('Bénéfice brut', 'الربح الخام')} ${fmt(profitM)}</div></div>
+    <button type="button" class="stat tap" onclick="go('owner')"><div class="l">${L('Mon crédit', 'الكريدي ديالي')}</div><div class="v ${ownO > 0.009 ? 'neg' : ''}">${fmt(Math.max(0, ownO))}</div><div class="s">${L('je dois à la caisse', 'كنسال للصندوق')}</div>${chev}</button>
+    <button type="button" class="stat tap" onclick="go('accountant')"><div class="l">${L('Comptable', 'المحاسب')}</div><div class="v ${accO > 0.009 ? 'warn' : ''}">${fmt(Math.max(0, accO))}</div><div class="s">${L('je lui dois', 'كنسالو')}${accM > 0 ? ` · ${L('payé ce mois', 'خلصت هاد الشهر')} ${fmt(accM)}` : ''}</div>${chev}</button>
   </div>
   ${sect('Clients qui doivent', 'clients')}
   ${list(cl.slice(0, 6).map(x => li('red', ini(x.c.name), esc(x.c.name), esc(x.c.phone) || '&nbsp;', fmt(x.b), 'neg', `statement('client','${x.c.id}')`)), 'Aucun crédit client')}
@@ -1655,11 +1680,92 @@ function saveExpense() {
 }
 async function deleteExpense(id) { if (!await uiConfirm('Supprimer cette dépense ?', 'Supprimer', true)) return; db.expenses = db.expenses.filter(e => e.id !== id); save(); render(); }
 
+/* ---------- MON CRÉDIT (argent que le patron prend de la caisse) ---------- */
+const ownerOwed = () => r2(sum(db.ownerMoves, m => m.type === 'take' ? m.amount : -m.amount));
+const ownerNetBetween = (from, to) => r2(sum(db.ownerMoves.filter(m => m.date >= from && m.date <= to), m => m.type === 'take' ? m.amount : -m.amount));
+views.owner = () => {
+  const owed = ownerOwed(), m = today().slice(0, 7);
+  const taken = sum(db.ownerMoves.filter(x => x.type === 'take'), x => x.amount), back = sum(db.ownerMoves.filter(x => x.type === 'back'), x => x.amount);
+  const list = [...db.ownerMoves].sort((a, b) => b.date.localeCompare(a.date) || (b.at || 0) - (a.at || 0));
+  const shown = list.slice(0, limits.owner || PAGE);
+  return `<h1>${L('Mon crédit', 'الكريدي ديالي')}</h1>
+  <div class="bighero ${owed > 0.009 ? 'bad' : 'good'}"><span>${owed > 0.009 ? L('Je dois à la caisse', 'كنسال للصندوق') : L('Je ne dois rien à la caisse', 'ما كنسال والو للصندوق')}</span><b>${fmt(Math.max(0, owed))}</b><small>${L("Ce que vous prenez est retiré du bénéfice, et revient quand vous le rendez.", 'داكشي اللي كتاخد كينقص من الربح، وكيرجع ملي كترجعو.')}</small></div>
+  <div class="twobtn"><button class="btn red" onclick="ownerMove('take')">− ${L('Prendre de la caisse', 'خود من الصندوق')}</button><button class="btn green" onclick="ownerMove('back')">+ ${L('Rendre à la caisse', 'رجّع للصندوق')}</button></div>
+  <div class="ssum"><div><span>${L('Total pris', 'مجموع اللي خديت')}</span><b class="neg">${fmt(taken)}</b></div><div><span>${L('Total rendu', 'مجموع اللي رجعت')}</span><b class="pos">${fmt(back)}</b></div><div><span>${L('Pris ce mois', 'خديت هاد الشهر')}</span><b>${fmt(sum(db.ownerMoves.filter(x => x.type === 'take' && x.date.startsWith(m)), x => x.amount))}</b></div><div><span>${L('Rendu ce mois', 'رجعت هاد الشهر')}</span><b>${fmt(sum(db.ownerMoves.filter(x => x.type === 'back' && x.date.startsWith(m)), x => x.amount))}</b></div></div>
+  <h3 class="sday">${L('Historique', 'السجل')}</h3>
+  ${list.length ? `<div class="mlist">${shown.map(x => `<div class="mrow"><span class="mic ${x.type === 'take' ? 'bad' : 'good'}">${x.type === 'take' ? '−' : '+'}</span><span class="mmid"><b>${x.type === 'take' ? L('Pris de la caisse', 'خديت من الصندوق') : L('Rendu à la caisse', 'رجعت للصندوق')}</b><small>${fdate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</small></span><b class="mamt ${x.type === 'take' ? 'neg' : 'pos'}">${x.type === 'take' ? '−' : '+'}${fmt(x.amount)}</b><button class="btn sm red" onclick="delMove('ownerMoves','${x.id}')" aria-label="${L('Supprimer', 'مسح')}">×</button></div>`).join('')}</div>${moreBtn('owner', list.length, shown.length)}` : `<div class="tablewrap"><div class="empty">${L('Rien pour le moment.', 'ما كاين والو دابا.')}</div></div>`}`;
+};
+function ownerMove(type) {
+  const owed = ownerOwed();
+  openModal(type === 'take' ? L('Prendre de la caisse', 'خود من الصندوق') : L('Rendre à la caisse', 'رجّع للصندوق'), `<div class="form">
+    ${type === 'back' && owed > 0.009 ? `<div class="full note">${L('Vous devez', 'كتسال')} <b class="neg">${fmt(owed)}</b> <button class="btn sm sec" onclick="$('#f_amount').value=${owed}">${L('Tout rendre', 'رجّع كلشي')}</button></div>` : ''}
+    <div><label for="f_amount">${L('Montant (DH)', 'المبلغ (درهم)')}</label><input id="f_amount" ${NUM}></div>
+    <div><label for="f_date">${L('Date', 'التاريخ')}</label><input id="f_date" type="date" value="${today()}"></div>
+    <div class="full"><label for="f_note">${L('Note', 'ملاحظة')}</label><input id="f_note" placeholder="${L('Pour quoi ?', 'علاش؟')}"></div>
+  </div><div class="mfoot"><button class="btn sec" onclick="closeModal()">${L('Annuler', 'إلغاء')}</button><button class="btn ${type === 'take' ? 'red' : 'green'}" onclick="saveOwnerMove('${type}')">${L('Enregistrer', 'سجّل')}</button></div>`);
+}
+function saveOwnerMove(type) {
+  const amount = num(val('f_amount')); if (amount <= 0) return uiAlert(L('Entrez un montant supérieur à 0.', 'دخل مبلغ كثر من 0.'));
+  db.ownerMoves.push({id: uid(), type, amount, date: validDate(val('f_date')), note: val('f_note'), at: Date.now()});
+  save(); closeModal(); render(); toast(type === 'take' ? L('Enregistré : retiré du bénéfice', 'تسجل: نقص من الربح') : L('Enregistré : rendu à la caisse', 'تسجل: رجع للصندوق'));
+}
+async function delMove(arr, id) { if (!await uiConfirm(L('Supprimer cette ligne ?', 'نمسح هاد السطر؟'), L('Supprimer', 'مسح'), true)) return; db[arr] = db[arr].filter(x => x.id !== id); save(); render(); }
+
+/* ---------- COMPTABLE ---------- */
+const monthsSince = since => { if (!since) return 0; const [y1, m1] = since.split('-').map(Number), [y2, m2] = today().slice(0, 7).split('-').map(Number); return Math.max(0, (y2 - y1) * 12 + (m2 - m1) + 1); };
+function accInfo() {
+  const a = db.accountant, months = num(a.fee) > 0 ? monthsSince(a.since) : 0;
+  const fees = r2(months * num(a.fee)), extra = sum(db.accMoves.filter(x => x.type === 'fee'), x => x.amount), paid = sum(db.accMoves.filter(x => x.type === 'pay'), x => x.amount);
+  return {months, fees, extra, paid, owed: r2(fees + extra - paid)};
+}
+const accPaidBetween = (from, to) => r2(sum(db.accMoves.filter(x => x.type === 'pay' && x.date >= from && x.date <= to), x => x.amount));
+views.accountant = () => {
+  const a = db.accountant, i = accInfo(), m = today().slice(0, 7);
+  const list = [...db.accMoves].sort((x, y) => y.date.localeCompare(x.date) || (y.at || 0) - (x.at || 0)), shown = list.slice(0, limits.accountant || PAGE);
+  return `<h1>${L('Comptable', 'المحاسب')}</h1>
+  <div class="accbox"><span class="dav orange">${esc((String(a.name || 'C').trim()[0] || 'C').toUpperCase())}</span><span class="mmid"><b>${esc(a.name) || L('Comptable', 'المحاسب')}</b><small>${a.phone ? `<a href="tel:${String(a.phone).replace(/[^\d+]/g, '')}">${esc(a.phone)}</a>` : L('Pas de téléphone', 'ما كاينش التيليفون')}${num(a.fee) > 0 ? ' · ' + fmt(a.fee) + ' / ' + L('mois', 'الشهر') : ''}</small></span><button class="btn sm sec" onclick="editAccountant()">${L('Modifier', 'بدّل')}</button></div>
+  <div class="bighero ${i.owed > 0.009 ? 'bad' : 'good'}"><span>${i.owed > 0.009 ? L('Je dois au comptable', 'كنسال للمحاسب') : i.owed < -0.009 ? L("J'ai payé d'avance", 'خلصت مسبق') : L('Je ne dois rien au comptable', 'ما كنسال والو للمحاسب')}</span><b>${fmt(Math.abs(i.owed))}</b><small>${L("L'argent payé au comptable est retiré du bénéfice.", 'الفلوس اللي كتخلص للمحاسب كتنقص من الربح.')}</small></div>
+  <div class="twobtn"><button class="btn" onclick="accMove('pay')">${L('Payer le comptable', 'خلص المحاسب')}</button><button class="btn sec" onclick="accMove('fee')">+ ${L('Ajouter des frais', 'زيد مصاريف')}</button></div>
+  <div class="ssum"><div><span>${L('Honoraires', 'الأجرة')}</span><b>${fmt(i.fees)}</b>${i.months ? `<small class="muted">${i.months} ${L('mois', 'شهر')} × ${fmt(a.fee)}</small>` : ''}</div><div><span>${L('Autres frais', 'مصاريف أخرى')}</span><b>${fmt(i.extra)}</b></div><div><span>${L('Total payé', 'مجموع اللي خلصت')}</span><b class="pos">${fmt(i.paid)}</b></div><div><span>${L('Payé ce mois', 'خلصت هاد الشهر')}</span><b>${fmt(sum(db.accMoves.filter(x => x.type === 'pay' && x.date.startsWith(m)), x => x.amount))}</b></div></div>
+  <h3 class="sday">${L('Historique', 'السجل')}</h3>
+  ${list.length ? `<div class="mlist">${shown.map(x => `<div class="mrow"><span class="mic ${x.type === 'pay' ? 'good' : 'bad'}">${x.type === 'pay' ? '✓' : '+'}</span><span class="mmid"><b>${x.type === 'pay' ? L('Paiement', 'خلاص') : L('Frais', 'مصاريف')}${x.method && x.type === 'pay' ? ' · ' + esc(tr(x.method)) : ''}</b><small>${fdate(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</small></span><b class="mamt ${x.type === 'pay' ? 'pos' : 'neg'}">${fmt(x.amount)}</b><button class="btn sm red" onclick="delMove('accMoves','${x.id}')" aria-label="${L('Supprimer', 'مسح')}">×</button></div>`).join('')}</div>${moreBtn('accountant', list.length, shown.length)}` : `<div class="tablewrap"><div class="empty">${L('Aucun paiement pour le moment.', 'ما كاين حتى خلاص دابا.')}</div></div>`}`;
+};
+function editAccountant() {
+  const a = db.accountant;
+  openModal(L('Infos du comptable', 'معلومات المحاسب'), `<div class="form">
+    <div class="full"><label for="f_name">${L('Nom / Cabinet', 'السمية / المكتب')}</label><input id="f_name" value="${esc(a.name)}"></div>
+    <div><label for="f_phone">${L('Téléphone', 'التيليفون')}</label><input id="f_phone" type="tel" value="${esc(a.phone)}"></div>
+    <div><label for="f_email">E-mail</label><input id="f_email" type="email" value="${esc(a.email)}"></div>
+    <div><label for="f_fee">${L('Honoraires par mois (DH)', 'الأجرة ف الشهر (درهم)')}</label><input id="f_fee" ${NUM} value="${num(a.fee) || ''}"></div>
+    <div><label for="f_since">${L('Depuis le mois', 'من الشهر')}</label><input id="f_since" type="month" value="${a.since || today().slice(0, 7)}"></div>
+    <div class="full note">${L('Chaque mois, les honoraires sont ajoutés à ce que vous lui devez.', 'كل شهر، الأجرة كتزاد على داكشي اللي كتسالو.')}</div>
+  </div><div class="mfoot"><button class="btn sec" onclick="closeModal()">${L('Annuler', 'إلغاء')}</button><button class="btn" onclick="saveAccountant()">${L('Enregistrer', 'سجّل')}</button></div>`);
+}
+function saveAccountant() {
+  Object.assign(db.accountant, {name: val('f_name'), phone: val('f_phone'), email: val('f_email'), fee: num(val('f_fee')), since: val('f_since')});
+  save(); closeModal(); render(); toast(L('Enregistré', 'تسجل'));
+}
+function accMove(type) {
+  const i = accInfo();
+  openModal(type === 'pay' ? L('Payer le comptable', 'خلص المحاسب') : L('Ajouter des frais', 'زيد مصاريف'), `<div class="form">
+    ${type === 'pay' && i.owed > 0.009 ? `<div class="full note">${L('Vous lui devez', 'كتسالو')} <b class="neg">${fmt(i.owed)}</b> <button class="btn sm sec" onclick="$('#f_amount').value=${i.owed}">${L('Tout payer', 'خلص كلشي')}</button></div>` : ''}
+    <div><label for="f_amount">${L('Montant (DH)', 'المبلغ (درهم)')}</label><input id="f_amount" ${NUM}></div>
+    <div><label for="f_date">${L('Date', 'التاريخ')}</label><input id="f_date" type="date" value="${today()}"></div>
+    ${type === 'pay' ? `<div><label for="f_method">${L('Mode', 'الطريقة')}</label><select id="f_method">${opts(METHODS, 'Espèces')}</select></div>` : ''}
+    <div class="${type === 'pay' ? '' : 'full'}"><label for="f_note">${L('Note', 'ملاحظة')}</label><input id="f_note" placeholder="${type === 'pay' ? L('Mois de..., chèque...', 'شهر...، شيك...') : L('Bilan annuel, déclaration...', 'البيلان، التصريح...')}"></div>
+  </div><div class="mfoot"><button class="btn sec" onclick="closeModal()">${L('Annuler', 'إلغاء')}</button><button class="btn" onclick="saveAccMove('${type}')">${L('Enregistrer', 'سجّل')}</button></div>`);
+}
+function saveAccMove(type) {
+  const amount = num(val('f_amount')); if (amount <= 0) return uiAlert(L('Entrez un montant supérieur à 0.', 'دخل مبلغ كثر من 0.'));
+  db.accMoves.push({id: uid(), type, amount, date: validDate(val('f_date')), method: type === 'pay' ? val('f_method') : '', note: val('f_note'), at: Date.now()});
+  save(); closeModal(); render(); toast(L('Enregistré', 'تسجل'));
+}
+
 /* ---------- RAPPORTS ---------- */
 views.reports = () => {
   const from = rep.from || today().slice(0, 8) + '01', to = rep.to || today(), inR = d => d >= from && d <= to;
   const S = db.sales.filter(s => inR(s.date)), A = db.purchases.filter(a => inR(a.date)), E = db.expenses.filter(e => inR(e.date)), P = db.payments.filter(p => inR(p.date));
-  const ca = sum(S, s => s.total), cost = sum(S, s => sum(s.items, i => i.cost * i.qty)), gross = earnedBetween(from, to), waitR = sum(S, x => Math.max(0, salePending(x))), exp = sum(E, e => e.amount);
+  const ca = sum(S, s => s.total), cost = sum(S, s => sum(s.items, i => i.cost * i.qty)), gross = earnedBetween(from, to), waitR = sum(S, x => Math.max(0, salePending(x))), exp = sum(E, e => e.amount), accR = accPaidBetween(from, to), ownR = ownerNetBetween(from, to), net = r2(gross - exp - accR - ownR);
   const cashIn = sum(S, s => s.paid) + sum(P.filter(p => p.type === 'client'), p => p.amount);
   const cashOut = sum(A, a => a.paid) + sum(P.filter(p => p.type === 'supplier'), p => p.amount) + exp;
   const top = {};
@@ -1677,7 +1783,9 @@ views.reports = () => {
     <div class="stat"><div class="l">Bénéfice brut</div><div class="v pos">${fmt(gross)}</div><div class="s">${L('argent reçu sur la période', 'على الفلوس اللي دخلات')}</div></div>
     <div class="stat"><div class="l">${L('Bénéfice en attente', 'ربح كيتسنى')}</div><div class="v warn">${fmt(waitR)}</div><div class="s">${L('ventes à crédit pas encore payées', 'مبيعات بالكريدي ما تخلصاتش')}</div></div>
     <div class="stat"><div class="l">Dépenses</div><div class="v neg">${fmt(exp)}</div></div>
-    <div class="stat"><div class="l">Bénéfice net</div><div class="v ${gross - exp >= 0 ? 'pos' : 'neg'}">${fmt(gross - exp)}</div></div>
+    <div class="stat"><div class="l">${L('Comptable (payé)', 'المحاسب (اللي تخلص)')}</div><div class="v neg">${fmt(accR)}</div></div>
+    <div class="stat"><div class="l">${L('Mon crédit (pris − rendu)', 'الكريدي ديالي (خديت − رجعت)')}</div><div class="v ${ownR > 0 ? 'neg' : 'pos'}">${fmt(ownR)}</div></div>
+    <div class="stat"><div class="l">Bénéfice net</div><div class="v ${net >= 0 ? 'pos' : 'neg'}">${fmt(net)}</div><div class="s">${L('brut − dépenses − comptable − mon crédit', 'الخام − المصاريف − المحاسب − الكريدي ديالي')}</div></div>
     <div class="stat"><div class="l">Achats</div><div class="v">${fmt(sum(A, a => a.total))}</div><div class="s">${A.length} achat(s)</div></div>
     <div class="stat"><div class="l">Argent entré</div><div class="v pos">${fmt(cashIn)}</div><div class="s">ventes + crédits encaissés</div></div>
     <div class="stat"><div class="l">Argent sorti</div><div class="v neg">${fmt(cashOut)}</div><div class="s">fournisseurs + dépenses</div></div>
@@ -1755,7 +1863,9 @@ function sheetTables() {
       {title: L('💡 Chiffres clés', '💡 الأرقام الكبار'), cols: kv, rows: [
         [L("Ventes aujourd'hui", 'مبيعات اليوم'), sum(db.sales.filter(s => s.date === t), s => s.total)],
         [L('Ventes ce mois', 'مبيعات هاد الشهر'), sum(sM, s => s.total)],
-        [L('Bénéfice net du mois', 'الربح الصافي ديال الشهر'), earnedBetween(m + '-01', m + '-31') - expM],
+        [L('Bénéfice net du mois', 'الربح الصافي ديال الشهر'), earnedBetween(m + '-01', m + '-31') - expM - accPaidBetween(m + '-01', m + '-31') - ownerNetBetween(m + '-01', m + '-31')],
+        [L('Mon crédit (je dois à la caisse)', 'الكريدي ديالي (كنسال للصندوق)'), ownerOwed()],
+        [L('Je dois au comptable', 'كنسال للمحاسب'), accInfo().owed],
         [L('Valeur du stock (prix d\'achat)', 'قيمة المخزون (بثمن الشرا)'), sum(db.products, p => p.qty * p.buy)],
         [L('Crédit clients (on vous doit)', 'كريدي الزبناء (اللي ليك)'), sum(cl.filter(x => x.b > 0), x => x.b)],
         [L('Dettes fournisseurs (vous devez)', 'ديون المزودين (اللي عليك)'), sum(su.filter(x => x.b > 0), x => x.b)],
