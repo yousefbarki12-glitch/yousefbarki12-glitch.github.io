@@ -870,7 +870,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '35'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '36'; // à changer avec CACHE dans sw.js
 /* Mode discret : l'œil en haut cache le bénéfice, les prix d'achat et les totaux (quand un client regarde l'écran) */
 let HIDE = false; try { HIDE = localStorage.getItem('hideAmounts') === '1'; } catch (e) {}
 function applyHide() { document.documentElement.classList.toggle('hideamt', HIDE); const b = document.getElementById('eyeBtn'); if (b) { b.classList.toggle('on', HIDE); b.setAttribute('aria-label', HIDE ? L('Afficher les montants', 'بيّن المبالغ') : L('Cacher les montants', 'خبي المبالغ')); } }
@@ -1809,7 +1809,8 @@ function accInfo() {
   return {fees, extra: ex, paid, owed: r2(fees + ex - paid), count: auto.length};
 }
 // Ce qui est retiré du bénéfice sur une période : honoraires dus + frais ajoutés (pas les paiements, sinon on compterait deux fois)
-const accChargedBetween = (from, to) => r2(sum(accCharges(to).filter(c => c.date >= from), c => c.amount) + sum(db.accMoves.filter(x => x.type === 'fee' && x.date >= from && x.date <= to), x => x.amount));
+// (jamais dans le futur : une échéance du 31 ne compte pas avant le 31)
+const accChargedBetween = (from, to) => { const t = today(); if (to > t) to = t; return r2(sum(accCharges(to).filter(c => c.date >= from), c => c.amount) + sum(db.accMoves.filter(x => x.type === 'fee' && x.date >= from && x.date <= to), x => x.amount)); };
 const accPaidBetween = (from, to) => r2(sum(db.accMoves.filter(x => x.type === 'pay' && x.date >= from && x.date <= to), x => x.amount));
 
 /* ---------- Notifications (orange, en haut, jusqu'à ce qu'on les ferme) ---------- */
@@ -1819,7 +1820,9 @@ function checkNotifs() {
   accCharges(today()).forEach(c => {
     if (seen.has(c.key)) return;
     seen.add(c.key); db.notifKeys.push(c.key); added++;
-    db.notifs.push({id: uid(), key: c.key, date: c.date, amount: c.amount, kind: 'acc'});
+    // une seule notification par jour d'échéance (ex. 1000 + 1000 le 31/12 = 2000)
+    const same = db.notifs.find(n => n.kind === 'acc' && n.date === c.date);
+    if (same) same.amount = r2(same.amount + c.amount); else db.notifs.push({id: uid(), key: c.key, date: c.date, amount: c.amount, kind: 'acc'});
   });
   if (added) save();
 }
