@@ -372,6 +372,14 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 .heroadd:active{transform:scale(.985)}
 .tagrow{display:flex;flex-wrap:wrap;gap:6px}
 .bigadd{min-height:50px;font-size:16px;margin-bottom:12px}
+/* Mode discret */
+#eyeBtn{border-radius:99px;min-width:40px;min-height:34px;display:grid;place-items:center;background:var(--panel);box-shadow:var(--shadow);border:0;color:var(--muted);padding:0 8px}
+#eyeBtn .eye-off{display:none}
+#eyeBtn.on{background:var(--accent);color:#fff}
+#eyeBtn.on .eye-on{display:none} #eyeBtn.on .eye-off{display:block}
+.hideamt .sens,.hideamt .hero .hv,.hideamt .hero .chip b,.hideamt .hero .chip small,.hideamt .stats .v,.hideamt .stats .s,.hideamt .ssum b,.hideamt .ssum small,
+.hideamt .bighero>b,.hideamt .bighero small,.hideamt .mamt,.hideamt .list .amt,.hideamt .pwait,.hideamt #view .tablewrap td.n,.hideamt .dline-r,.hideamt .planchip b,.hideamt #d_info b
+{filter:blur(8px);user-select:none;-webkit-user-select:none;pointer-events:none}
 .notifs{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
 .notif{display:flex;align-items:center;gap:10px;background:#fff4e5;color:#7a4300;border-radius:14px;padding:10px 10px 10px 12px;box-shadow:inset 0 0 0 1.5px #f5a524;font-size:14px;line-height:1.35}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .notif{background:#3a2a10;color:#ffd08a}}
@@ -512,7 +520,7 @@ input::placeholder{color:color-mix(in srgb,var(--muted) 70%,transparent)}
 </head>
 <body>
 
-<header class="top"><button class="brandbtn" onclick="showAccount()" aria-label="Mon compte"><img class="brandmark" src="logo-mark.png" alt=""><span class="shop" id="brandName">Magasin PC</span><svg class="brandchev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button><span id="saveStatus"></span><button class="btn sm sec" id="langBtn" onclick="setLang(LANG === 'ar' ? 'fr' : 'ar')" aria-label="Langue / اللغة">ع</button></header>
+<header class="top"><button class="brandbtn" onclick="showAccount()" aria-label="Mon compte"><img class="brandmark" src="logo-mark.png" alt=""><span class="shop" id="brandName">Magasin PC</span><svg class="brandchev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button><span id="saveStatus"></span><button class="btn sm sec" id="eyeBtn" onclick="toggleHide()" aria-label="Cacher les montants"><svg class="eye-on" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7a9.8 9.8 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button><button class="btn sm sec" id="langBtn" onclick="setLang(LANG === 'ar' ? 'fr' : 'ar')" aria-label="Langue / اللغة">ع</button></header>
 <main id="view"></main>
 <nav class="tabs" id="tabs"></nav>
 
@@ -860,7 +868,11 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '31'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '32'; // à changer avec CACHE dans sw.js
+/* Mode discret : l'œil en haut cache le bénéfice, les prix d'achat et les totaux (quand un client regarde l'écran) */
+let HIDE = false; try { HIDE = localStorage.getItem('hideAmounts') === '1'; } catch (e) {}
+function applyHide() { document.documentElement.classList.toggle('hideamt', HIDE); const b = document.getElementById('eyeBtn'); if (b) { b.classList.toggle('on', HIDE); b.setAttribute('aria-label', HIDE ? L('Afficher les montants', 'بيّن المبالغ') : L('Cacher les montants', 'خبي المبالغ')); } }
+function toggleHide() { HIDE = !HIDE; try { localStorage.setItem('hideAmounts', HIDE ? '1' : '0'); } catch (e) {} applyHide(); toast(HIDE ? L('Montants cachés', 'المبالغ مخبيين') : L('Montants affichés', 'المبالغ باينين')); }
 const NUM = 'type="number" inputmode="decimal" step="0.01"';
 /* Champs numériques : un 0 n'est pas écrit (le 0 gris du placeholder suffit) ; les quantités valent 1 par défaut */
 function blankZeros(root) {
@@ -1052,7 +1064,7 @@ function render() {
   if (db.accountant && db.accountant.since) checkNotifs();
   $('#view').innerHTML = notifsHTML() + (views[current] || views.dashboard)();
   translate($('#tabs')); translate($('#view'));
-  $('#langBtn').textContent = LANG === 'ar' ? 'FR' : 'ع';
+  $('#langBtn').textContent = LANG === 'ar' ? 'FR' : 'ع'; applyHide();
   if (!$('#auth').hidden) showAuth();
   labelTables($('#view')); blankZeros($('#view'));
   updateStatus();
@@ -1225,9 +1237,9 @@ views.stock = () => {
         <dl class="scard-info">
           <div><dt>${L('Quantité', 'الكمية')}</dt><dd><span class="spill ${['good', 'warn', 'bad'][l]}">${p.qty > 0 ? p.qty + ' ' + (p.qty > 1 ? L('pièces', 'حبات') : L('pièce', 'حبة')) : L('Épuisé', 'سالي')}</span></dd></div>
           <div><dt>${L('État', 'الحالة')}</dt><dd>${esc(tr(p.condition || ''))}</dd></div>
-          <div><dt>${L("Prix d'achat", 'ثمن الشرا')}</dt><dd>${fmt(p.buy)}</dd></div>
+          <div><dt>${L("Prix d'achat", 'ثمن الشرا')}</dt><dd class="sens">${fmt(p.buy)}</dd></div>
           <div><dt>${L('Prix de vente', 'ثمن البيع')}</dt><dd>${fmt(p.sell)}</dd></div>
-          <div><dt>${L('Marge', 'الربح')}</dt><dd class="${p.sell - p.buy >= 0 ? 'pos' : 'neg'}"><b>${fmt(p.sell - p.buy)}</b></dd></div>
+          <div><dt>${L('Marge', 'الربح')}</dt><dd class="sens ${p.sell - p.buy >= 0 ? 'pos' : 'neg'}"><b>${fmt(p.sell - p.buy)}</b></dd></div>
           <div><dt>${L('Catégorie', 'النوع')}</dt><dd>${esc(tr(p.category || ''))}</dd></div>
           ${p.notes ? `<div style="grid-column:1/-1"><dt>${L('Notes', 'ملاحظات')}</dt><dd>${esc(p.notes)}</dd></div>` : ''}
         </dl>
@@ -1452,7 +1464,7 @@ function pickRender() {
     return `<button type="button" class="pickrow${p.id === cur ? ' on' : ''}" ${out ? 'disabled' : ''} onclick="pickSet('${p.id}')">
       ${pickIcon(p.category)}
       <span class="pickmain"><b>${esc(p.name)}</b>${specs ? `<span class="pickspec">${specs}</span>` : ''}${meta ? `<small>${meta}</small>` : ''}</span>
-      <span class="pickside"><b>${fmt(isS ? p.sell : p.buy)}</b><span class="pickstock ${p.qty <= 0 ? 'out' : low ? 'low' : 'ok'}">${p.qty > 0 ? L('Stock', 'المخزون') + ' ' + p.qty : L('Épuisé', 'سالي')}</span></span></button>`;
+      <span class="pickside"><b class="${isS ? '' : 'sens'}">${fmt(isS ? p.sell : p.buy)}</b><span class="pickstock ${p.qty <= 0 ? 'out' : low ? 'low' : 'ok'}">${p.qty > 0 ? L('Stock', 'المخزون') + ' ' + p.qty : L('Épuisé', 'سالي')}</span></span></button>`;
   };
   const add = !isS ? `<button type="button" class="pickrow pickadd" onclick="pickSet('__new')"><span class="pickic">+</span><span class="pickmain"><b>${L('Nouveau produit', 'منتوج جديد')}</b><small>${L('Le produit n\'existe pas encore', 'المنتوج ما كاينش باقي')}</small></span></button>` : '';
   const n = list.length;
@@ -1480,7 +1492,7 @@ function updateTotals() {
   let info = '';
   if (draft.kind === 'sale') {
     const profit = sum(draft.items, i => { const p = prod(i.productId); return p ? (i.price - p.buy) * i.qty : 0; }) - num(draft.discount);
-    info = `Bénéfice estimé : <b class="${profit >= 0 ? 'pos' : 'neg'}">${fmt(profit)}</b>`;
+    info = `Bénéfice estimé : <b class="sens ${profit >= 0 ? 'pos' : 'neg'}">${fmt(profit)}</b>`;
     if (draft.clientId) info += ` · Crédit actuel du client : <b>${fmt(clientBalance(draft.clientId))}</b>`;
   }
   $('#d_info').innerHTML = info; translate($('#d_info'));
@@ -1561,7 +1573,7 @@ views.sales = () => {
           <div><dt>${L('Client', 'الزبون')}</dt><dd>${esc(cl ? cl.name : L('Client passager', 'زبون عابر'))}</dd></div>
           ${s.items.some(i => i.serial) ? `<div><dt>${L('N° série', 'الرقم التسلسلي')}</dt><dd>${esc(s.items.map(i => i.serial).filter(Boolean).join(', '))}</dd></div>` : ''}
           <div><dt>${L('Paiement', 'الأداء')}</dt><dd>${left > 0.009 ? `<span class="spill bad">${L('Reste', 'باقي')} ${fmt(left)}</span>` : `<span class="spill good">${L('Payé', 'مخلص')}</span>`}</dd></div>
-          <div><dt>${L('Bénéfice reçu', 'الربح اللي دخل')}</dt><dd class="pos"><b>${fmt(saleEarned(s))}</b>${salePending(s) > 0.009 ? `<small class="pwait">${L('en attente', 'كيتسنى')} ${fmt(salePending(s))}</small>` : ''}</dd></div>
+          <div><dt>${L('Bénéfice reçu', 'الربح اللي دخل')}</dt><dd class="pos sens"><b>${fmt(saleEarned(s))}</b>${salePending(s) > 0.009 ? `<small class="pwait">${L('en attente', 'كيتسنى')} ${fmt(salePending(s))}</small>` : ''}</dd></div>
         </dl>
         <div class="scard-actions"><button class="btn sm sec" onclick="showSale('${s.id}')">${L('Facture', 'الفاتورة')}</button><button class="btn sm red" onclick="deleteSale('${s.id}')" aria-label="${L('Supprimer', 'مسح')}">×</button></div>
       </div>
@@ -1596,7 +1608,7 @@ function invoiceHTML(s) {
 const docWrap = (title, body) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head><body style="margin:0;padding:24px;background:#fff">${body}</body></html>`;
 function showSale(id) {
   const s = db.sales.find(x => x.id === id);
-  openModal('Vente ' + s.num, `<p class="note">${L('Bénéfice reçu', 'الربح اللي دخل')} : <b class="pos">${fmt(saleEarned(s))}</b>${salePending(s) > 0.009 ? ` · ${L('en attente du paiement', 'كيتسنى الخلاص')} : <b class="warn">${fmt(salePending(s))}</b> (${L('sur', 'من')} ${fmt(saleProfit(s))})` : ''}</p>
+  openModal('Vente ' + s.num, `<p class="note sens">${L('Bénéfice reçu', 'الربح اللي دخل')} : <b class="pos">${fmt(saleEarned(s))}</b>${salePending(s) > 0.009 ? ` · ${L('en attente du paiement', 'كيتسنى الخلاص')} : <b class="warn">${fmt(salePending(s))}</b> (${L('sur', 'من')} ${fmt(saleProfit(s))})` : ''}</p>
   <div class="inv">${invoiceHTML(s)}</div>
   <div class="mfoot"><button class="btn sec" onclick="closeModal()">Fermer</button><button class="btn sec" onclick="printHTML(invoiceHTML(db.sales.find(x=>x.id==='${s.id}')))">Imprimer</button><button class="btn" onclick="downloadInvoice('${s.id}')">Partager la facture</button></div>`, true);
 }
