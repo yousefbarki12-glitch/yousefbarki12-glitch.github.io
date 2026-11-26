@@ -364,6 +364,7 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--accent-
 .scard{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden;border-inline-start:4px solid var(--accent-2)}
 .scard.due{border-inline-start-color:var(--bad)}
 /* Notifications */
+.hero .chip small{display:block;font-size:11px;opacity:.8;margin-top:2px}
 .notifs{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
 .notif{display:flex;align-items:center;gap:10px;background:#fff4e5;color:#7a4300;border-radius:14px;padding:10px 10px 10px 12px;box-shadow:inset 0 0 0 1.5px #f5a524;font-size:14px;line-height:1.35}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .notif{background:#3a2a10;color:#ffd08a}}
@@ -851,7 +852,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '29'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '30'; // à changer avec CACHE dans sw.js
 const NUM = 'type="number" inputmode="decimal" step="0.01"';
 /* Champs numériques : un 0 n'est pas écrit (le 0 gris du placeholder suffit) ; les quantités valent 1 par défaut */
 function blankZeros(root) {
@@ -1127,8 +1128,8 @@ views.dashboard = () => {
     <div class="hl">${L("Ventes aujourd'hui", 'مبيعات اليوم')} · ${sT.length} ${L('vente(s)', 'بيعة')}</div>
     <div class="hv">${amtN(sum(sT, s => s.total))} <small>${L('DH', 'درهم')}</small></div>
     <div class="chips">
-      <div class="chip"><span>${L('Ventes ce mois', 'مبيعات الشهر')}</span><b>${fmt(sum(sM, s => s.total))}</b></div>
-      <div class="chip"><span>${L('Bénéfice net du mois', 'الربح الصافي ديال الشهر')}</span><b>${fmt(profitM - expM - accM - ownM)}</b></div>
+      <div class="chip"><span>${L('Ventes ce mois', 'مبيعات الشهر')}</span><b>${fmt(sum(sM, s => s.total) - ownM)}</b>${ownM > 0.009 ? `<small>${L('dont', 'منها')} −${fmt(ownM)} ${L('mon crédit', 'الكريدي ديالي')}</small>` : ''}</div>
+      <div class="chip"><span>${L('Bénéfice net du mois', 'الربح الصافي ديال الشهر')}</span><b>${fmt(profitM - expM - accM)}</b></div>
     </div>
   </div>
   <div class="actions4">
@@ -1705,7 +1706,7 @@ views.owner = () => {
   const list = [...db.ownerMoves].sort((a, b) => b.date.localeCompare(a.date) || (b.at || 0) - (a.at || 0));
   const shown = list.slice(0, limits.owner || PAGE);
   return `<h1>${L('Mon crédit', 'الكريدي ديالي')}</h1>
-  <div class="bighero ${owed > 0.009 ? 'bad' : 'good'}"><span>${owed > 0.009 ? L('Je dois à la caisse', 'كنسال للصندوق') : L('Je ne dois rien à la caisse', 'ما كنسال والو للصندوق')}</span><b>${fmt(Math.max(0, owed))}</b><small>${L("Ce que vous prenez est retiré du bénéfice, et revient quand vous le rendez.", 'داكشي اللي كتاخد كينقص من الربح، وكيرجع ملي كترجعو.')}</small></div>
+  <div class="bighero ${owed > 0.009 ? 'bad' : 'good'}"><span>${owed > 0.009 ? L('Je dois à la caisse', 'كنسال للصندوق') : L('Je ne dois rien à la caisse', 'ما كنسال والو للصندوق')}</span><b>${fmt(Math.max(0, owed))}</b><small>${L("Ce que vous prenez est retiré des ventes du mois, et revient quand vous le rendez.", 'داكشي اللي كتاخد كينقص من مبيعات الشهر، وكيرجع ملي كترجعو.')}</small></div>
   <div class="twobtn"><button class="btn red" onclick="ownerMove('take')">− ${L('Prendre de la caisse', 'خود من الصندوق')}</button><button class="btn green" onclick="ownerMove('back')">+ ${L('Rendre à la caisse', 'رجّع للصندوق')}</button></div>
   <div class="ssum"><div><span>${L('Total pris', 'مجموع اللي خديت')}</span><b class="neg">${fmt(taken)}</b></div><div><span>${L('Total rendu', 'مجموع اللي رجعت')}</span><b class="pos">${fmt(back)}</b></div><div><span>${L('Pris ce mois', 'خديت هاد الشهر')}</span><b>${fmt(sum(db.ownerMoves.filter(x => x.type === 'take' && x.date.startsWith(m)), x => x.amount))}</b></div><div><span>${L('Rendu ce mois', 'رجعت هاد الشهر')}</span><b>${fmt(sum(db.ownerMoves.filter(x => x.type === 'back' && x.date.startsWith(m)), x => x.amount))}</b></div></div>
   <h3 class="sday">${L('Historique', 'السجل')}</h3>
@@ -1724,7 +1725,7 @@ function saveOwnerMove(type) {
   const amount = num(val('f_amount')); if (amount <= 0) return uiAlert(L('Entrez un montant supérieur à 0.', 'دخل مبلغ كثر من 0.'));
   db.ownerMoves.push({id: uid(), type, amount, date: validDate(val('f_date')), note: val('f_note'), at: Date.now()});
   if (type === 'take') addNotif('take', amount);
-  save(); closeModal(); render(); toast(type === 'take' ? L('Enregistré : retiré du bénéfice', 'تسجل: نقص من الربح') : L('Enregistré : rendu à la caisse', 'تسجل: رجع للصندوق'));
+  save(); closeModal(); render(); toast(type === 'take' ? L('Enregistré : retiré des ventes du mois', 'تسجل: نقص من مبيعات الشهر') : L('Enregistré : rendu à la caisse', 'تسجل: رجع للصندوق'));
 }
 async function delMove(arr, id) { if (!await uiConfirm(L('Supprimer cette ligne ?', 'نمسح هاد السطر؟'), L('Supprimer', 'مسح'), true)) return; db[arr] = db[arr].filter(x => x.id !== id); save(); render(); }
 
@@ -1771,7 +1772,7 @@ function checkNotifs() {
 function notifText(n) {
   if (n.kind === 'acc') return `${L('Comptable', 'المحاسب')} : <b>${fmt(n.amount)}</b> ${L('retirés du bénéfice', 'نقصو من الربح')} (${L('échéance du', 'أجل')} ${fdate(n.date)})`;
   if (n.kind === 'accFee') return `${L('Comptable', 'المحاسب')} : <b>${fmt(n.amount)}</b> ${L('de frais retirés du bénéfice', 'ديال المصاريف نقصو من الربح')}${n.note ? ' · ' + esc(n.note) : ''}`;
-  if (n.kind === 'take') return `${L('Mon crédit', 'الكريدي ديالي')} : <b>${fmt(n.amount)}</b> ${L('pris de la caisse, retirés du bénéfice', 'خديتهم من الصندوق، نقصو من الربح')}`;
+  if (n.kind === 'take') return `${L('Mon crédit', 'الكريدي ديالي')} : <b>${fmt(n.amount)}</b> ${L('pris de la caisse, retirés des ventes du mois', 'خديتهم من الصندوق، نقصو من مبيعات الشهر')}`;
   return esc(n.text || '');
 }
 function notifsHTML() {
@@ -1845,7 +1846,7 @@ function saveAccMove(type) {
 views.reports = () => {
   const from = rep.from || today().slice(0, 8) + '01', to = rep.to || today(), inR = d => d >= from && d <= to;
   const S = db.sales.filter(s => inR(s.date)), A = db.purchases.filter(a => inR(a.date)), E = db.expenses.filter(e => inR(e.date)), P = db.payments.filter(p => inR(p.date));
-  const ca = sum(S, s => s.total), cost = sum(S, s => sum(s.items, i => i.cost * i.qty)), gross = earnedBetween(from, to), waitR = sum(S, x => Math.max(0, salePending(x))), exp = sum(E, e => e.amount), accR = accChargedBetween(from, to), ownR = ownerNetBetween(from, to), net = r2(gross - exp - accR - ownR);
+  const ca = sum(S, s => s.total), cost = sum(S, s => sum(s.items, i => i.cost * i.qty)), gross = earnedBetween(from, to), waitR = sum(S, x => Math.max(0, salePending(x))), exp = sum(E, e => e.amount), accR = accChargedBetween(from, to), ownR = ownerNetBetween(from, to), net = r2(gross - exp - accR);
   const cashIn = sum(S, s => s.paid) + sum(P.filter(p => p.type === 'client'), p => p.amount);
   const cashOut = sum(A, a => a.paid) + sum(P.filter(p => p.type === 'supplier'), p => p.amount) + exp;
   const top = {};
@@ -1864,8 +1865,8 @@ views.reports = () => {
     <div class="stat"><div class="l">${L('Bénéfice en attente', 'ربح كيتسنى')}</div><div class="v warn">${fmt(waitR)}</div><div class="s">${L('ventes à crédit pas encore payées', 'مبيعات بالكريدي ما تخلصاتش')}</div></div>
     <div class="stat"><div class="l">Dépenses</div><div class="v neg">${fmt(exp)}</div></div>
     <div class="stat"><div class="l">${L('Comptable (honoraires)', 'المحاسب (الأجرة)')}</div><div class="v neg">${fmt(accR)}</div></div>
-    <div class="stat"><div class="l">${L('Mon crédit (pris − rendu)', 'الكريدي ديالي (خديت − رجعت)')}</div><div class="v ${ownR > 0 ? 'neg' : 'pos'}">${fmt(ownR)}</div></div>
-    <div class="stat"><div class="l">Bénéfice net</div><div class="v ${net >= 0 ? 'pos' : 'neg'}">${fmt(net)}</div><div class="s">${L('brut − dépenses − comptable − mon crédit', 'الخام − المصاريف − المحاسب − الكريدي ديالي')}</div></div>
+    <div class="stat"><div class="l">${L('Mon crédit (pris − rendu)', 'الكريدي ديالي (خديت − رجعت)')}</div><div class="v ${ownR > 0 ? 'neg' : 'pos'}">${fmt(ownR)}</div><div class="s">${L('retiré des ventes', 'نقص من المبيعات')} · ${L('ventes après', 'المبيعات من بعد')} ${fmt(ca - ownR)}</div></div>
+    <div class="stat"><div class="l">Bénéfice net</div><div class="v ${net >= 0 ? 'pos' : 'neg'}">${fmt(net)}</div><div class="s">${L('brut − dépenses − comptable', 'الخام − المصاريف − المحاسب')}</div></div>
     <div class="stat"><div class="l">Achats</div><div class="v">${fmt(sum(A, a => a.total))}</div><div class="s">${A.length} achat(s)</div></div>
     <div class="stat"><div class="l">Argent entré</div><div class="v pos">${fmt(cashIn)}</div><div class="s">ventes + crédits encaissés</div></div>
     <div class="stat"><div class="l">Argent sorti</div><div class="v neg">${fmt(cashOut)}</div><div class="s">fournisseurs + dépenses</div></div>
@@ -1942,8 +1943,8 @@ function sheetTables() {
     {name: L('📊 Résumé', '📊 الملخص'), title: '💻 ' + shop + ' — ' + L('Résumé', 'الملخص'), color: '#3c4d74', sections: [
       {title: L('💡 Chiffres clés', '💡 الأرقام الكبار'), cols: kv, rows: [
         [L("Ventes aujourd'hui", 'مبيعات اليوم'), sum(db.sales.filter(s => s.date === t), s => s.total)],
-        [L('Ventes ce mois', 'مبيعات هاد الشهر'), sum(sM, s => s.total)],
-        [L('Bénéfice net du mois', 'الربح الصافي ديال الشهر'), earnedBetween(m + '-01', m + '-31') - expM - accChargedBetween(m + '-01', m + '-31') - ownerNetBetween(m + '-01', m + '-31')],
+        [L('Ventes ce mois (moins mon crédit)', 'مبيعات هاد الشهر (ناقص الكريدي ديالي)'), sum(sM, s => s.total) - ownerNetBetween(m + '-01', m + '-31')],
+        [L('Bénéfice net du mois', 'الربح الصافي ديال الشهر'), earnedBetween(m + '-01', m + '-31') - expM - accChargedBetween(m + '-01', m + '-31')],
         [L('Mon crédit (je dois à la caisse)', 'الكريدي ديالي (كنسال للصندوق)'), ownerOwed()],
         [L('Je dois au comptable', 'كنسال للمحاسب'), accInfo().owed],
         [L('Valeur du stock (prix d\'achat)', 'قيمة المخزون (بثمن الشرا)'), sum(db.products, p => p.qty * p.buy)],
