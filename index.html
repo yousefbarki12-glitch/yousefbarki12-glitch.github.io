@@ -870,7 +870,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '33'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '34'; // à changer avec CACHE dans sw.js
 /* Mode discret : l'œil en haut cache le bénéfice, les prix d'achat et les totaux (quand un client regarde l'écran) */
 let HIDE = false; try { HIDE = localStorage.getItem('hideAmounts') === '1'; } catch (e) {}
 function applyHide() { document.documentElement.classList.toggle('hideamt', HIDE); const b = document.getElementById('eyeBtn'); if (b) { b.classList.toggle('on', HIDE); b.setAttribute('aria-label', HIDE ? L('Afficher les montants', 'بيّن المبالغ') : L('Cacher les montants', 'خبي المبالغ')); } }
