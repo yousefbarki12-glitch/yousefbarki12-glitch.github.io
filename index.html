@@ -870,7 +870,7 @@ function langSwitch() {
   return `<div class="toolbar"><button class="btn ${LANG === 'fr' ? '' : 'sec'}" onclick="setLang('fr')">Français</button><button class="btn ${LANG === 'ar' ? '' : 'sec'}" onclick="setLang('ar')">العربية</button></div>`;
 }
 applyLangAttrs();
-const APP_VERSION = '37'; // à changer avec CACHE dans sw.js
+const APP_VERSION = '38'; // à changer avec CACHE dans sw.js
 /* Mode discret : l'œil en haut cache le bénéfice, les prix d'achat et les totaux (quand un client regarde l'écran) */
 let HIDE = false; try { HIDE = localStorage.getItem('hideAmounts') === '1'; } catch (e) {}
 function applyHide() { document.documentElement.classList.toggle('hideamt', HIDE); const b = document.getElementById('eyeBtn'); if (b) { b.classList.toggle('on', HIDE); b.setAttribute('aria-label', HIDE ? L('Afficher les montants', 'بيّن المبالغ') : L('Cacher les montants', 'خبي المبالغ')); } }
@@ -1647,7 +1647,13 @@ async function deletePurchase(id) {
   const a = db.purchases.find(x => x.id === id);
   for (const i of a.items) { const p = prod(i.productId); if (p && p.qty < i.qty) return uiAlert(`Impossible : une partie de « ${p.name} » a déjà été vendue. Supprimez d'abord les ventes concernées.`); }
   if (!await uiConfirm(`Supprimer l'achat ${a.num} ?\nLes quantités seront retirées du stock.`, 'Supprimer', true)) return;
-  a.items.forEach(i => { const p = prod(i.productId); if (p) p.qty -= i.qty; });
+  a.items.forEach(i => {
+    const p = prod(i.productId); if (!p) return;
+    // on annule aussi l'effet de cet achat sur le coût moyen
+    const rest = p.qty - i.qty, back = rest > 0 ? r2((p.qty * p.buy - i.qty * i.price) / rest) : p.buy;
+    if (rest > 0 && back > 0) p.buy = back;
+    p.qty = rest;
+  });
   db.purchases = db.purchases.filter(x => x.id !== id); save(); render();
 }
 
